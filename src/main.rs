@@ -5,6 +5,7 @@
 mod config;
 mod http_server;
 mod monitor;
+mod storage;
 
 fn main() {
     println!("Hello, world!");
