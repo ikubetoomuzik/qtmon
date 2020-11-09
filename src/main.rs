@@ -1,3 +1,4 @@
+#![allow(dead_code, unused_imports)]
 //! Multithreaded application to monitor a questrade account.
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
@@ -8,5 +9,5 @@ mod monitor;
 mod storage;
 
 fn main() {
-    println!("Hello, world!");
+    println!("Work in progress..");
 }
