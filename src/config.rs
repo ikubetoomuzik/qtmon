@@ -2,7 +2,7 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
 
-use super::http_server::RestApiFeatures;
+use super::{http_server::RestApiFeatures, Result};
 use chrono::{DateTime, Utc};
 use clap::{clap_app, AppSettings::ColoredHelp};
 use dirs::config_dir;
@@ -15,13 +15,16 @@ use std::{
 };
 
 #[derive(Debug)]
+/// Struct defining the Configuration that will be used by all other modules.
 pub struct Config {
     pub settings: ConfigFile,
     pub auth: AuthInfo,
 }
 
 impl Config {
-    pub fn generate() -> ron::Result<Self> {
+    /// Basic starting function to generate the main config.
+    /// Parses command line args and then uses those to load the ConfigFile.
+    pub fn generate() -> Result<Self> {
         // get cli args.
         let args = clap_app!(qtmon =>
         (version: env!("CARGO_PKG_VERSION"))
@@ -64,35 +67,27 @@ impl Config {
         Ok(Config { settings, auth })
     }
     // Save a new set of authentication info.
-    pub fn save_new_auth_info(
-        &mut self,
-        auth_info: AuthenticationInfo,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    pub fn save_new_auth_info(&mut self, auth_info: AuthenticationInfo) -> Result<()> {
         // Convert from api version to the version I can save.
         let auth = AuthInfo::convert_from_api_auth(auth_info)?;
-        // Open the file with options so we overwrite the old value.
-        let mut file = OpenOptions::new()
-            .write(true)
-            .open(&self.settings.auth_file_path)?;
-        // Turn the struct into a RON string.
-        let auth_str = to_string::<AuthInfo>(&auth)?;
-        // Write out the generate string to the file and close it.
-        file.write_all(auth_str.as_bytes())?;
-        // Once everything is written we set the var in our program.
+        // Set the auth to our variable.
         self.auth = auth;
+        // Use the AuthInfo save() method to store the value.
+        self.auth.save(&self.settings.auth_file_path)?;
         Ok(())
     }
 }
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
+    pub db_file_path: String,
     auth_file_path: String,
     http_port: u16,
     rest_api_features: Option<Vec<RestApiFeatures>>,
 }
 
 impl ConfigFile {
-    fn load(file: &str) -> ron::Result<Self> {
+    fn load(file: &str) -> Result<Self> {
         let input = read_to_string(file)?;
         Ok(from_str::<Self>(&input)?)
     }
@@ -117,7 +112,7 @@ impl SavedAuthInfo {
             is_demo: self.is_demo,
         }
     }
-    fn convert_from_api(api_auth: AuthenticationInfo) -> Result<Self, Box<dyn std::error::Error>> {
+    fn convert_from_api(api_auth: AuthenticationInfo) -> Result<Self> {
         let expires_at = api_auth.expires_at;
         let duration = expires_at - std::time::Instant::now();
         let duration = chrono::Duration::from_std(duration)?;
@@ -140,28 +135,39 @@ pub enum AuthInfo {
 
 impl AuthInfo {
     // *** Basic I/O Functions ***
-    fn load(file: &str) -> ron::Result<Self> {
+    fn load(file: &str) -> Result<Self> {
         let input = read_to_string(file)?;
         Ok(from_str::<Self>(&input)?)
     }
-    fn save(&self, file: &str) -> ron::Result<()> {
-        let mut file = File::create(file)?;
+    fn save(&self, file: &str) -> Result<()> {
+        let mut file = OpenOptions::new().write(true).create(true).open(file)?;
         let output = to_string::<Self>(self)?;
         file.write_all(output.as_bytes())?;
         Ok(())
     }
     // *** Conversion Functions ***
-    pub fn convert_to_api_auth(&self) -> Result<AuthenticationInfo, String> {
-        match self {
-            Self::RefreshToken(s) => Err(s.to_string()),
-            Self::FullAuthInfo(sai) => Ok(sai.convert_to_api()),
-        }
-    }
-    fn convert_from_api_auth(
-        api_auth: AuthenticationInfo,
-    ) -> Result<Self, Box<dyn std::error::Error>> {
+    fn convert_from_api_auth(api_auth: AuthenticationInfo) -> Result<Self> {
         Ok(Self::FullAuthInfo(SavedAuthInfo::convert_from_api(
             api_auth,
         )?))
+    }
+    // *** Helper Functions ***
+    pub fn refresh_token(&self) -> &str {
+        match self {
+            Self::RefreshToken(rt) => rt,
+            Self::FullAuthInfo(sai) => &sai.refresh_token,
+        }
+    }
+    pub fn is_expired(&self) -> bool {
+        match self {
+            Self::RefreshToken(_) => true,
+            Self::FullAuthInfo(sai) => {
+                if Utc::now() > sai.expires_at {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
     }
 }

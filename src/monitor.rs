@@ -2,17 +2,19 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
 
-use super::config::{AuthInfo, Config};
-use questrade::{AuthenticationInfo, Questrade};
+use super::{Result, storage::DB,config::{AuthInfo, Config}};
+use questrade::Questrade;
 use reqwest::Client;
 
-pub struct QtradeAPIInterface {
+pub struct Monitor {
     pub config: Config,
+    pub db: DB,
     qtrade: Questrade,
 }
 
-impl QtradeAPIInterface {
-    pub async fn new(mut config: Config) -> Result<Self, Box<dyn std::error::Error>> {
+
+impl Monitor {
+    pub async fn new(mut config: Config) -> Result<Self> {
         // Set up our qtrade variable to be set in the match statement.
         let qtrade: Questrade;
         match &config.auth {
@@ -28,9 +30,23 @@ impl QtradeAPIInterface {
                 qtrade = Questrade::with_authentication(auth_info, Client::new());
             }
         }
-        Ok(QtradeAPIInterface {
+        // Set up the Rustbreak DB.
+        let db = DB::new(&config)?;
+        Ok(Self {
             config,
+            db,
             qtrade,
         })
+    }
+    pub async fn validate_auth(&mut self) -> Result<()> {
+        if self.config.auth.is_expired() {
+            self.refresh_auth().await?;
+        } 
+        Ok(())
+    }
+    async fn refresh_auth(&mut self) -> Result<()> {
+        self.qtrade.authenticate(self.config.auth.refresh_token(), false).await?;
+        self.config.save_new_auth_info(self.qtrade.get_auth_info().unwrap())?;
+        Ok(())
     }
 }

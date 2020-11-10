@@ -1,5 +1,6 @@
 ConfigFile(
     auth_file_path: "default/auth.ron",
+    db_file_path: "default/db.ron",
     http_port: 42069,
     rest_api_features: None,
 )
