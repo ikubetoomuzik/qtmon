@@ -15,7 +15,4 @@ tokio = { version = "0.2", features = ["full"] }
 warp = "0.2"
 questrade = "0.1"
 reqwest = "0.10"
-
-[dependencies.rustbreak]
-version = "2"
-features = ["ron_enc"]
+rustbreak = { version = "2", features = ["ron_enc"] }
