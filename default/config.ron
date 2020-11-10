@@ -1,6 +1,5 @@
 ConfigFile(
-    auth_file_location: "./default_auth.ron"
-    web_interface_enabled: true,
-    rest_api_enabled: true,
-    rest_api_features: [],
+    auth_file_path: "default/auth.ron",
+    http_port: 42069,
+    rest_api_features: None,
 )
