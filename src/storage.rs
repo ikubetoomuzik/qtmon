@@ -3,19 +3,26 @@
 //! Started on: November 8, 2020
 
 #[cfg(feature = "bincode")]
-use super::util::Bincode;
+use super::include::Bincode;
 #[cfg(feature = "default")]
-use super::util::Ron;
+use super::include::Ron;
 #[cfg(feature = "yaml")]
-use super::util::Yaml;
+use super::include::Yaml;
 use super::{
     config::Config,
-    util::{
+    include::{
         Account, AccountBalance, AccountName, AccountNumber, AccountPosition, Arc, DateTime,
         Deserialize, HashMap, NaiveDate, NaiveTime, PathBuf, PathDatabase, Result, Serialize, Utc,
         Weak,
     },
+    myerrors::DBInsertError,
 };
+
+/// Helper functions
+fn make_dateime_naive(datetime: DateTime<Utc>) -> (NaiveDate, NaiveTime) {
+    let datetime = datetime.naive_utc();
+    (datetime.date(), datetime.time())
+}
 
 pub type DBRef = Arc<DB>;
 pub type DBRefWeak = Weak<DB>;
@@ -81,21 +88,78 @@ impl DBInfo {
         }
     }
     fn insert_account(&mut self, number: AccountNumber, account: Account) -> Result<()> {
-        Ok(())
+        if self.accounts.keys().any(|k| *k == number) {
+            Err(Box::new(DBInsertError::InsertAccountDuplicateNumberError))
+        } else if self.accounts.values().any(|v| *v == account) {
+            Err(Box::new(DBInsertError::InsertAccountDuplicateInfoError))
+        } else {
+            self.accounts.insert(number, account);
+            Ok(())
+        }
     }
     fn insert_account_balance(
         &mut self,
         datetime: DateTime<Utc>,
+        number: AccountNumber,
         balance: AccountBalance,
     ) -> Result<()> {
-        Ok(())
+        let (date, time) = make_dateime_naive(datetime);
+        if !self.account_balances.contains_key(&number) {
+            let mut hm = HashMap::new();
+            hm.insert(date, DBInfoAccountBalance::new(balance, time));
+            self.account_balances.insert(number, hm);
+            Ok(())
+        } else if !self
+            .account_balances
+            .get(&number)
+            .unwrap()
+            .iter()
+            .any(|bal_inf| {
+                bal_inf.0 == &date
+                    && bal_inf.1.account_balance == balance
+                    && bal_inf.1.time_retrieved == time
+            })
+        {
+            self.account_balances
+                .get_mut(&number)
+                .unwrap()
+                .insert(date, DBInfoAccountBalance::new(balance, time));
+            Ok(())
+        } else {
+            Err(Box::new(DBInsertError::InsertAccountBalanceError))
+        }
     }
     fn insert_account_position(
         &mut self,
+        number: AccountNumber,
         datetime: DateTime<Utc>,
         position: AccountPosition,
     ) -> Result<()> {
-        Ok(())
+        let (date, time) = make_dateime_naive(datetime);
+        if !self.account_balances.contains_key(&number) {
+            let mut hm = HashMap::new();
+            hm.insert(date, DBInfoAccountPosition::new(position, time));
+            self.account_positions.insert(number, hm);
+            Ok(())
+        } else if !self
+            .account_positions
+            .get(&number)
+            .unwrap()
+            .iter()
+            .any(|bal_inf| {
+                bal_inf.0 == &date
+                    && bal_inf.1.account_position == position
+                    && bal_inf.1.time_retrieved == time
+            })
+        {
+            self.account_positions
+                .get_mut(&number)
+                .unwrap()
+                .insert(date, DBInfoAccountPosition::new(position, time));
+            Ok(())
+        } else {
+            Err(Box::new(DBInsertError::InsertAccountPositionError))
+        }
     }
 }
 
@@ -107,10 +171,28 @@ struct DBInfoAccountBalance {
     time_retrieved: NaiveTime,
 }
 
+impl DBInfoAccountBalance {
+    fn new(account_balance: AccountBalance, time_retrieved: NaiveTime) -> Self {
+        Self {
+            account_balance,
+            time_retrieved,
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 /// Second item is positions.
 /// This is the wrapper for our positions.
 struct DBInfoAccountPosition {
     account_position: AccountPosition,
     time_retrieved: NaiveTime,
+}
+
+impl DBInfoAccountPosition {
+    fn new(account_position: AccountPosition, time_retrieved: NaiveTime) -> Self {
+        Self {
+            account_position,
+            time_retrieved,
+        }
+    }
 }

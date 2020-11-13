@@ -5,8 +5,8 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
+    include::{Arc, Client, Questrade, Result},
     storage::{DBRef, DB},
-    util::{Arc, Client, Questrade, Result},
 };
 
 pub struct Monitor {

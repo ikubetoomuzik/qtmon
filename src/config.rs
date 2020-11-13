@@ -4,7 +4,7 @@
 
 use super::{
     http_server::RestApiFeature,
-    util::{
+    include::{
         clap_app, config_dir, from_str, read_to_string, to_string, AuthenticationInfo, ColoredHelp,
         DateTime, Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
     },

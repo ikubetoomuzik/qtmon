@@ -6,22 +6,21 @@
 // Local modules to store the real workhorse code.
 mod config;
 mod http_server;
+mod include;
 mod monitor;
+mod myerrors;
 mod storage;
-mod util;
 
 // Local use statements.
 use config::Config;
+use include::{io, tokio, Result};
 use monitor::Monitor;
-use util::{io, tokio, Result};
 
 // temp delay_until_input function
 fn delay_until_input() -> Result<()> {
-    for _ in 0..20 {
-        let mut buffer = String::new();
-        let stdin = io::stdin();
-        stdin.read_line(&mut buffer)?;
-    }
+    let mut buffer = String::new();
+    let stdin = io::stdin();
+    stdin.read_line(&mut buffer)?;
     Ok(())
 }
 
@@ -30,9 +29,9 @@ fn delay_until_input() -> Result<()> {
 async fn main() -> Result<()> {
     // Reads CLI args and a config file encoded in Ron to generate config.
     let conf = Config::generate()?;
-    // This creates a new interface to use for the app, it also makes sure that all auth info is
-    // valid.
-    let interface = Monitor::new(conf).await?;
+    // This creates a new interface to use for the app,
+    // it also makes sure that all auth info is valid.
+    let _ = Monitor::new(conf).await?;
     delay_until_input()?;
     Ok(())
 }
