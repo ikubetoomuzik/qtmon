@@ -2,16 +2,12 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
 
-use super::{http_server::RestApiFeatures, Result};
-use chrono::{DateTime, Utc};
-use clap::{clap_app, AppSettings::ColoredHelp};
-use dirs::config_dir;
-use questrade::AuthenticationInfo;
-use ron::{from_str, to_string};
-use serde::{Deserialize, Serialize};
-use std::{
-    fs::{read_to_string, File, OpenOptions},
-    io::Write,
+use super::{
+    http_server::RestApiFeature,
+    util::{
+        clap_app, config_dir, from_str, read_to_string, to_string, AuthenticationInfo, ColoredHelp,
+        DateTime, Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
+    },
 };
 
 #[derive(Debug)]
@@ -34,13 +30,10 @@ impl Config {
         (@arg REFRESH: -r --refreshtoken  +takes_value "If running for the first time this can provide the starting refresh token."))
         .setting(ColoredHelp)
         .get_matches();
-
         // check for a supplied refresh token.
         let refresh_token_arg = args.value_of("REFRESH");
-
         // check for a supplied config file path.
         let config_path_arg = args.value_of("CONFIG");
-
         // check for X_DEFAULT_DIR.
         let default_config_dir = match config_dir() {
             Some(mut cd) => {
@@ -50,13 +43,11 @@ impl Config {
             }
             None => String::new(),
         };
-
         // load the settings (ConfigFile struct).
         let settings = ConfigFile::load(match config_path_arg {
             Some(path) => path.trim(),
             None => &default_config_dir,
         })?;
-
         // load the saved auth info or use the supplied token if it is there.
         let auth = match refresh_token_arg {
             Some(rt) => AuthInfo::RefreshToken(rt.to_string()),
@@ -83,7 +74,7 @@ pub struct ConfigFile {
     pub db_file_path: String,
     auth_file_path: String,
     http_port: u16,
-    rest_api_features: Option<Vec<RestApiFeatures>>,
+    rest_api_features: Option<Vec<RestApiFeature>>,
 }
 
 impl ConfigFile {
@@ -104,18 +95,34 @@ pub struct SavedAuthInfo {
 
 impl SavedAuthInfo {
     pub fn convert_to_api(&self) -> AuthenticationInfo {
+        // Chrono durations can be negative so we can just do the subtraction. If its positive then
+        // the token isn't expired and we are doing addition. And visa versa.
+        let time_to_expiry = self.expires_at - Utc::now();
+        // Here is where we make the actual decision and calculation.
+        let expires_at = if time_to_expiry >= Duration::zero() {
+            // Since we have already checked the sign of the duration we know we can just convert
+            // and call unwrap with no risk of panic.
+            let time_to_expiry = time_to_expiry.to_std().unwrap();
+            // Sign was positive so we add.
+            Instant::now() + time_to_expiry
+        } else {
+            let time_to_expiry = time_to_expiry * -1;
+            let time_to_expiry = time_to_expiry.to_std().unwrap();
+            Instant::now() - time_to_expiry
+        };
+
         AuthenticationInfo {
             refresh_token: self.refresh_token.to_string(),
             access_token: self.access_token.to_string(),
-            expires_at: std::time::Instant::now(),
             api_server: self.api_server.to_string(),
-            is_demo: self.is_demo,
+            is_demo: false,
+            expires_at,
         }
     }
     fn convert_from_api(api_auth: AuthenticationInfo) -> Result<Self> {
         let expires_at = api_auth.expires_at;
-        let duration = expires_at - std::time::Instant::now();
-        let duration = chrono::Duration::from_std(duration)?;
+        let duration = expires_at - Instant::now();
+        let duration = Duration::from_std(duration)?;
         let expires_at = Utc::now() + duration;
         Ok(SavedAuthInfo {
             refresh_token: api_auth.refresh_token,
@@ -162,7 +169,7 @@ impl AuthInfo {
         match self {
             Self::RefreshToken(_) => true,
             Self::FullAuthInfo(sai) => {
-                if Utc::now() > sai.expires_at {
+                if sai.expires_at - Utc::now() <= Duration::minutes(5) {
                     true
                 } else {
                     false
