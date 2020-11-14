@@ -1,7 +1,7 @@
+// #![allow(dead_code, unused_variables, unused_imports)]
 //! Multithreaded application to monitor a questrade account.
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
-// #![allow(dead_code, unused_variables, unused_imports)]
 
 // Local modules to store the real workhorse code.
 mod config;
@@ -31,7 +31,12 @@ async fn main() -> Result<()> {
     let conf = Config::generate()?;
     // This creates a new interface to use for the app,
     // it also makes sure that all auth info is valid.
-    let _ = Monitor::new(conf).await?;
+    let mut mon = Monitor::new(conf).await?;
+    if let Err(e) = mon.sync_accounts().await {
+        eprintln!("Error:\n{}", e);
+    }
+    mon.print_db();
     delay_until_input()?;
+    mon.save_db()?;
     Ok(())
 }

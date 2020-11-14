@@ -5,23 +5,16 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{Arc, Client, Questrade, Result},
+    include::{AccountNumber, ApiError, Arc, Client, Questrade, Result},
     storage::{DBRef, DB},
 };
 
 pub struct Monitor {
-    pub config: Config,
-    pub db: DBRef,
+    config: Config,
+    db: DBRef,
     qtrade: Questrade,
-    pub http: HTTPServer,
+    http: HTTPServer,
 }
-
-// impl Drop for Monitor {
-//     fn drop(&mut self) {
-//         println!("Shutting down...");
-//         self.http.kill();
-//     }
-// }
 
 impl Monitor {
     pub async fn new(mut config: Config) -> Result<Self> {
@@ -46,7 +39,11 @@ impl Monitor {
         // Bincode backend for data storage. No matter what it is a Path database.
         let db = DBRef::new(DB::new(&config)?);
         // Start the http server.
-        let http = HTTPServer::new(Arc::downgrade(&db.clone()), Vec::new());
+        let http = HTTPServer::new(
+            config.settings.http_port,
+            Arc::downgrade(&db.clone()),
+            &config.settings.rest_api_features,
+        );
         // Return the created Monitor.
         let mut result = Self {
             config,
@@ -56,6 +53,9 @@ impl Monitor {
         };
         // make sure we have valid tokens when we create it.
         result.validate_auth().await?;
+        result
+            .config
+            .save_new_auth_info(result.qtrade.get_auth_info().unwrap())?;
         // Returned the created interface.
         Ok(result)
     }
@@ -63,15 +63,77 @@ impl Monitor {
     pub async fn validate_auth(&mut self) -> Result<()> {
         // The only time we need to take action is if things are expired.
         if self.config.auth.is_expired() {
-            // Here we make the request to the questrade server to get new auth info.
-            self.qtrade
-                .authenticate(self.config.auth.refresh_token(), false)
-                .await?;
-            // Here we save it to the config object and the local auth file.
-            self.config
-                .save_new_auth_info(self.qtrade.get_auth_info().unwrap())?;
+            self.renew_auth().await?;
         }
         // Indicate that everything is ok
         Ok(())
+    }
+    async fn renew_auth(&mut self) -> Result<()> {
+        // Here we make the request to the questrade server to get new auth info.
+        self.qtrade
+            .authenticate(self.config.auth.refresh_token(), false)
+            .await?;
+        // Here we save it to the config object and the local auth file.
+        self.config
+            .save_new_auth_info(self.qtrade.get_auth_info().unwrap())?;
+        Ok(())
+    }
+
+    pub async fn sync_accounts(&mut self) -> Result<()> {
+        let mut qtrade_result = match self.qtrade.accounts().await {
+            Ok(accs) => accs,
+            Err(e) => {
+                let e = e.downcast::<ApiError>()?;
+                match e.as_ref() {
+                    ApiError::NotAuthenticatedError(_) => {
+                        self.renew_auth().await?;
+                        self.qtrade.accounts().await?
+                    }
+                    _ => return Err(e),
+                }
+            }
+        };
+        for acc in qtrade_result.drain(..) {
+            match self
+                .config
+                .settings
+                .accounts_to_sync
+                .iter()
+                .find(|ats| ats.check_account_match(&acc))
+            {
+                Some(an) => (*self.db).db.write(|db_info| -> Result<()> {
+                    let name = if an.name_is_empty() {
+                        acc.number.clone()
+                    } else {
+                        an.name()
+                    };
+                    db_info.insert_account(name, acc)?;
+                    Ok(())
+                })?,
+                None => continue,
+            }?;
+        }
+        Ok(())
+    }
+
+    pub async fn sync_account_balances(&mut self) -> Result<()> {
+        for acct_num in (*self.db).db.read(|db_info| {
+            db_info
+                .iter_accounts()
+                .map(|dbi| dbi.number.clone())
+                .collect::<Vec<AccountNumber>>()
+        }) {
+            println!("duh");
+        }
+        Ok(())
+    }
+
+    pub fn save_db(&self) -> Result<()> {
+        (*self.db).db.save()?;
+        Ok(())
+    }
+
+    pub fn print_db(&self) {
+        println!("DB:\n{:#?}", self.db);
     }
 }

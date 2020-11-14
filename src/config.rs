@@ -5,8 +5,9 @@
 use super::{
     http_server::RestApiFeature,
     include::{
-        clap_app, config_dir, from_str, read_to_string, to_string, AuthenticationInfo, ColoredHelp,
-        DateTime, Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
+        clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
+        AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, DateTime,
+        Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
     },
 };
 
@@ -73,14 +74,55 @@ impl Config {
 pub struct ConfigFile {
     pub db_file_path: String,
     auth_file_path: String,
-    http_port: u16,
-    rest_api_features: Option<Vec<RestApiFeature>>,
+    pub http_port: u16,
+    pub rest_api_features: Vec<RestApiFeature>,
+    pub accounts_to_sync: Vec<AccountToSync>,
 }
 
 impl ConfigFile {
     fn load(file: &str) -> Result<Self> {
         let input = read_to_string(file)?;
         Ok(from_str::<Self>(&input)?)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum AccountSelector {
+    Number(AccountNumber),
+    IsPrimary(bool),
+    IsBilling(bool),
+    AccountType(AccountType),
+    ClientAccountType(ClientAccountType),
+    Status(AccountStatus),
+}
+
+impl AccountSelector {
+    fn check_account_match(&self, acct: &Account) -> bool {
+        match self {
+            Self::Number(acc_num) => *acc_num == acct.number,
+            Self::IsPrimary(ip) => *ip == acct.is_primary,
+            Self::IsBilling(ib) => *ib == acct.is_billing,
+            Self::AccountType(acc_type) => *acc_type == acct.account_type,
+            Self::ClientAccountType(cli_acc_type) => *cli_acc_type == acct.client_account_type,
+            Self::Status(acc_stat) => *acc_stat == acct.status,
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct AccountToSync(String, Vec<AccountSelector>);
+
+impl AccountToSync {
+    pub fn check_account_match(&self, acct: &Account) -> bool {
+        self.1
+            .iter()
+            .all(|selector| selector.check_account_match(acct))
+    }
+    pub fn name(&self) -> String {
+        self.0.clone()
+    }
+    pub fn name_is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 }
 

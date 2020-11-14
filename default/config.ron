@@ -3,4 +3,5 @@ ConfigFile(
     db_file_path: "default/db",
     http_port: 42069,
     rest_api_features: None,
+    accounts_to_sync: [AccountToSync("Primary", [IsPrimary(true)])],
 )

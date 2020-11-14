@@ -26,13 +26,13 @@ pub struct HTTPServer {
 }
 
 impl HTTPServer {
-    pub fn new(db: DBRefWeak, rest_api_features: Vec<RestApiFeature>) -> Self {
+    pub fn new(port: u16, db: DBRefWeak, rest_api_features: &[RestApiFeature]) -> Self {
         // for now the routes are just a simple hello..
         let routes = warp::any().map(|| "Hello there...");
         // print it out babyyy.
         println!("Starting HTTP server...");
         // here is the actual start of the server..
-        let server = warp::serve(routes).bind(([127, 0, 0, 1], 8080));
+        let server = warp::serve(routes).bind(([127, 0, 0, 1], port));
         HTTPServer {
             handle: tokio::spawn(server),
         }

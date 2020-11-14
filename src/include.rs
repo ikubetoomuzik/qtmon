@@ -7,8 +7,8 @@ pub use chrono::{DateTime, Duration, NaiveDate, NaiveTime, Utc};
 pub use clap::{clap_app, AppSettings::ColoredHelp};
 pub use dirs::config_dir;
 pub use questrade::{
-    Account, AccountBalance, AccountPosition, AccountType, AuthenticationInfo, ClientAccountType,
-    Currency, Questrade,
+    Account, AccountBalance, AccountPosition, AccountStatus, AccountType, ApiError,
+    AuthenticationInfo, ClientAccountType, Currency, Questrade,
 };
 pub use reqwest::Client;
 pub use ron::{from_str, to_string};
@@ -22,7 +22,7 @@ pub use rustbreak::PathDatabase;
 pub use serde::{Deserialize, Serialize};
 pub use std::{
     cell::RefCell,
-    collections::HashMap,
+    collections::{hash_map, HashMap},
     error, fmt,
     fs::{read_to_string, OpenOptions},
     io::{self, Read, Write},
@@ -37,3 +37,4 @@ pub use warp;
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
 pub type AccountName = String;
 pub type AccountNumber = String;
+pub type PositionSymbol = String;
