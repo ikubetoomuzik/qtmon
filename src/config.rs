@@ -6,8 +6,8 @@ use super::{
     http_server::RestApiFeature,
     include::{
         clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
-        AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, DateTime,
-        Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
+        AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, Currency,
+        DateTime, Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
     },
 };
 
@@ -77,6 +77,7 @@ pub struct ConfigFile {
     pub http_port: u16,
     pub rest_api_features: Vec<RestApiFeature>,
     pub accounts_to_sync: Vec<AccountToSync>,
+    pub account_balance_currency: Currency,
 }
 
 impl ConfigFile {

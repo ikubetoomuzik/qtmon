@@ -1074,7 +1074,7 @@ dependencies = [
  "chrono",
  "clap",
  "dirs",
- "questrade",
+ "questrade-rs",
  "reqwest",
  "ron",
  "rustbreak",
@@ -1084,10 +1084,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "questrade"
+name = "questrade-rs"
 version = "0.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fcd3b241eac5f38c33e6e11cbc33e95ce3ea4746dff3fa628b8aaa6bb2821861"
+checksum = "130725d32d5ba18fa0b42ef3fd7bb04dbbf84fc81b2c247de6a93b76f2573f11"
 dependencies = [
  "chrono",
  "http",

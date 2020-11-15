@@ -1,7 +1,8 @@
 ConfigFile(
     auth_file_path: "default/auth.ron",
-    db_file_path: "default/db",
+    db_file_path: "default/db.ron",
     http_port: 42069,
-    rest_api_features: None,
+    rest_api_features: [],
     accounts_to_sync: [AccountToSync("Primary", [IsPrimary(true)])],
+    account_balance_currency: CAD,
 )

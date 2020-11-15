@@ -18,6 +18,6 @@ serde = "*"
 ron = "*"
 tokio = { version = "0.2", features = ["full"] }
 warp = "0.2"
-questrade = "0.1"
+questrade-rs = "0.1"
 reqwest = "0.10"
 rustbreak = "2"

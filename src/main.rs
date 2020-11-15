@@ -32,8 +32,17 @@ async fn main() -> Result<()> {
     // This creates a new interface to use for the app,
     // it also makes sure that all auth info is valid.
     let mut mon = Monitor::new(conf).await?;
+    // sync the accounts and for now we print errors.
     if let Err(e) = mon.sync_accounts().await {
-        eprintln!("Error:\n{}", e);
+        eprintln!("Error1:\n{}", e);
+    }
+    // sync the balances and for now we print errors.
+    if let Err(e) = mon.sync_account_balances().await {
+        eprintln!("Error2:\n{}", e);
+    }
+    // sync the positions and for now we print errors.
+    if let Err(e) = mon.sync_account_positions().await {
+        eprintln!("Error3:\n{}", e);
     }
     mon.print_db();
     delay_until_input()?;

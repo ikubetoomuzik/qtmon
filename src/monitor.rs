@@ -5,7 +5,7 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{AccountNumber, ApiError, Arc, Client, Questrade, Result},
+    include::{AccountNumber, ApiError, Arc, Client, Questrade, Result, Utc},
     storage::{DBRef, DB},
 };
 
@@ -13,7 +13,7 @@ pub struct Monitor {
     config: Config,
     db: DBRef,
     qtrade: Questrade,
-    http: HTTPServer,
+    _http: HTTPServer,
 }
 
 impl Monitor {
@@ -39,7 +39,7 @@ impl Monitor {
         // Bincode backend for data storage. No matter what it is a Path database.
         let db = DBRef::new(DB::new(&config)?);
         // Start the http server.
-        let http = HTTPServer::new(
+        let _http = HTTPServer::new(
             config.settings.http_port,
             Arc::downgrade(&db.clone()),
             &config.settings.rest_api_features,
@@ -49,10 +49,12 @@ impl Monitor {
             config,
             db,
             qtrade,
-            http,
+            _http,
         };
         // make sure we have valid tokens when we create it.
-        result.validate_auth().await?;
+        if result.config.auth.is_expired() {
+            result.renew_auth().await?;
+        }
         result
             .config
             .save_new_auth_info(result.qtrade.get_auth_info().unwrap())?;
@@ -60,14 +62,6 @@ impl Monitor {
         Ok(result)
     }
 
-    pub async fn validate_auth(&mut self) -> Result<()> {
-        // The only time we need to take action is if things are expired.
-        if self.config.auth.is_expired() {
-            self.renew_auth().await?;
-        }
-        // Indicate that everything is ok
-        Ok(())
-    }
     async fn renew_auth(&mut self) -> Result<()> {
         // Here we make the request to the questrade server to get new auth info.
         self.qtrade
@@ -117,17 +111,83 @@ impl Monitor {
     }
 
     pub async fn sync_account_balances(&mut self) -> Result<()> {
-        for acct_num in (*self.db).db.read(|db_info| {
-            db_info
-                .iter_accounts()
-                .map(|dbi| dbi.number.clone())
-                .collect::<Vec<AccountNumber>>()
-        }) {
-            println!("duh");
+        for acct_num in (*self.db)
+            .db
+            .read(|db_info| {
+                db_info
+                    .iter_accounts()
+                    .map(|dbi| dbi.number.clone())
+                    .collect::<Vec<AccountNumber>>()
+            })?
+            .drain(..)
+        {
+            let balances = match self.qtrade.account_balance(&acct_num).await {
+                Ok(acct_bals) => acct_bals,
+                Err(e) => {
+                    let e = e.downcast::<ApiError>()?;
+                    match *e {
+                        ApiError::NotAuthenticatedError(_) => {
+                            self.qtrade.account_balance(&acct_num).await?
+                        }
+                        _ => return Err(e),
+                    }
+                }
+            };
+            (*self.db).db.write(|db_info| -> Result<()> {
+                db_info.insert_account_balance(
+                    Utc::now(),
+                    &acct_num,
+                    balances
+                        .per_currency_balances
+                        .iter()
+                        .find(|bl| bl.currency == self.config.settings.account_balance_currency)
+                        .unwrap_or(&balances.per_currency_balances[0])
+                        .clone(),
+                    balances
+                        .sod_per_currency_balances
+                        .iter()
+                        .find(|bl| bl.currency == self.config.settings.account_balance_currency)
+                        .unwrap_or(&balances.per_currency_balances[0])
+                        .clone(),
+                )?;
+                Ok(())
+            })??;
         }
         Ok(())
     }
 
+    pub async fn sync_account_positions(&mut self) -> Result<()> {
+        for acct_num in (*self.db)
+            .db
+            .read(|db_info| {
+                db_info
+                    .iter_accounts()
+                    .map(|dbi| dbi.number.clone())
+                    .collect::<Vec<AccountNumber>>()
+            })?
+            .drain(..)
+        {
+            let positions = match self.qtrade.account_positions(&acct_num).await {
+                Ok(acct_poss) => acct_poss,
+                Err(e) => {
+                    let e = e.downcast::<ApiError>()?;
+                    match *e {
+                        ApiError::NotAuthenticatedError(_) => {
+                            self.qtrade.account_positions(&acct_num).await?
+                        }
+                        _ => return Err(e),
+                    }
+                }
+            };
+            for pos in positions {
+                (*self.db).db.write(|db_info| -> Result<()> {
+                    db_info.insert_account_position(Utc::now(), &acct_num, pos)?;
+                    Ok(())
+                })??;
+            }
+        }
+        Ok(())
+    }
     pub fn save_db(&self) -> Result<()> {
         (*self.db).db.save()?;
         Ok(())

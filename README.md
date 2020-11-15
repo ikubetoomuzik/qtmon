@@ -1,2 +1,15 @@
 # qtmon
 Version: **0.1.0**
+
+## TODO
+
+* [ ] REST API to actually get info.
+* [ ] Implement real event loop with error handling so all these Results I'm making are useful.
+* [ ] Look deeper into the configuration for the *Ron* crate **Serializer/Deserializer** interfaces.
+* [ ] Go back and comment throughout the project, most specifically in the *storage* module.
+* [ ] Fill out README more completely.
+* [ ] Add license.
+
+## Author
+
+By: **Curtis Jones** <*mail@curtisjones.ca*>

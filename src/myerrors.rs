@@ -42,7 +42,7 @@ impl fmt::Display for DBInsertError {
             ),
             DBInsertError::InsertAccountPositionNoAccountError => write!(
                 f,
-                "Could not insert Account Position into DataBase! Duplicate already in DB."
+                "Could not insert Account Position into DataBase! Account that position belongs to does not exist."
             ),
         }
     }

@@ -26,7 +26,7 @@ pub struct HTTPServer {
 }
 
 impl HTTPServer {
-    pub fn new(port: u16, db: DBRefWeak, rest_api_features: &[RestApiFeature]) -> Self {
+    pub fn new(port: u16, _db: DBRefWeak, _rest_api_features: &[RestApiFeature]) -> Self {
         // for now the routes are just a simple hello..
         let routes = warp::any().map(|| "Hello there...");
         // print it out babyyy.
