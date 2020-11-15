@@ -5,7 +5,7 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{AccountNumber, ApiError, Arc, Client, Questrade, Result, Utc},
+    include::{AccountNumber, ApiError, Arc, Client, Local, Questrade, Result},
     storage::{DBRef, DB},
 };
 
@@ -41,7 +41,7 @@ impl Monitor {
         // Start the http server.
         let _http = HTTPServer::new(
             config.settings.http_port,
-            Arc::downgrade(&db.clone()),
+            Arc::downgrade(&db),
             &config.settings.rest_api_features,
         );
         // Return the created Monitor.
@@ -135,7 +135,7 @@ impl Monitor {
             };
             (*self.db).db.write(|db_info| -> Result<()> {
                 db_info.insert_account_balance(
-                    Utc::now(),
+                    Local::now(),
                     &acct_num,
                     balances
                         .per_currency_balances
@@ -181,7 +181,7 @@ impl Monitor {
             };
             for pos in positions {
                 (*self.db).db.write(|db_info| -> Result<()> {
-                    db_info.insert_account_position(Utc::now(), &acct_num, pos)?;
+                    db_info.insert_account_position(Local::now(), &acct_num, pos)?;
                     Ok(())
                 })??;
             }

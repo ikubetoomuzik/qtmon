@@ -7,7 +7,7 @@ use super::{
     include::{
         clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
         AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, Currency,
-        DateTime, Deserialize, Duration, Instant, OpenOptions, Result, Serialize, Utc, Write,
+        DateTime, Deserialize, Duration, Instant, Local, OpenOptions, Result, Serialize, Write,
     },
 };
 
@@ -131,7 +131,7 @@ impl AccountToSync {
 pub struct SavedAuthInfo {
     refresh_token: String,
     access_token: String,
-    expires_at: DateTime<Utc>,
+    expires_at: DateTime<Local>,
     api_server: String,
     is_demo: bool,
 }
@@ -140,7 +140,7 @@ impl SavedAuthInfo {
     pub fn convert_to_api(&self) -> AuthenticationInfo {
         // Chrono durations can be negative so we can just do the subtraction. If its positive then
         // the token isn't expired and we are doing addition. And visa versa.
-        let time_to_expiry = self.expires_at - Utc::now();
+        let time_to_expiry = self.expires_at - Local::now();
         // Here is where we make the actual decision and calculation.
         let expires_at = if time_to_expiry >= Duration::zero() {
             // Since we have already checked the sign of the duration we know we can just convert
@@ -163,10 +163,26 @@ impl SavedAuthInfo {
         }
     }
     fn convert_from_api(api_auth: AuthenticationInfo) -> Result<Self> {
+        // pull the expires at time from the arg
         let expires_at = api_auth.expires_at;
-        let duration = expires_at - Instant::now();
+        // get the time
+        let now = Instant::now();
+        // have to do the check here because std:instants do not like negative numbers.
+        let duration = if now > expires_at {
+            now - expires_at
+        } else {
+            expires_at - now
+        };
+        // convert std:duration to chrono:duration
         let duration = Duration::from_std(duration)?;
-        let expires_at = Utc::now() + duration;
+        // apply the duration and we have to do the sign ourselves because of std:time not liking
+        // negative numbers.
+        let expires_at = if now > expires_at {
+            Local::now() - duration
+        } else {
+            Local::now() + duration
+        };
+        // and finally we return the calculated val.
         Ok(SavedAuthInfo {
             refresh_token: api_auth.refresh_token,
             access_token: api_auth.access_token,
@@ -212,7 +228,7 @@ impl AuthInfo {
         match self {
             Self::RefreshToken(_) => true,
             Self::FullAuthInfo(sai) => {
-                if sai.expires_at - Utc::now() <= Duration::minutes(5) {
+                if sai.expires_at - Local::now() <= Duration::minutes(5) {
                     true
                 } else {
                     false

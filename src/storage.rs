@@ -12,15 +12,15 @@ use super::{
     config::Config,
     include::{
         hash_map, Account, AccountBalance, AccountName, AccountNumber, AccountPosition, Arc,
-        Currency, DateTime, Deserialize, HashMap, NaiveDate, NaiveTime, PathBuf, PathDatabase,
-        PositionSymbol, Result, Serialize, Utc, Weak,
+        Currency, DateTime, Deserialize, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
+        PathDatabase, PositionSymbol, Result, Serialize, Weak,
     },
     myerrors::DBInsertError,
 };
 
 /// Helper functions
-fn make_dateime_naive(datetime: DateTime<Utc>) -> (NaiveDate, NaiveTime) {
-    let datetime = datetime.naive_utc();
+fn make_dateime_naive(datetime: DateTime<Local>) -> (NaiveDate, NaiveTime) {
+    let datetime = datetime.naive_local();
     (datetime.date(), datetime.time())
 }
 
@@ -94,7 +94,7 @@ impl DBInfo {
 
     pub fn insert_account_balance(
         &mut self,
-        datetime: DateTime<Utc>,
+        datetime: DateTime<Local>,
         number: &AccountNumber,
         balance: AccountBalance,
         sod: AccountBalance,
@@ -132,7 +132,7 @@ impl DBInfo {
 
     pub fn insert_account_position(
         &mut self,
-        datetime: DateTime<Utc>,
+        datetime: DateTime<Local>,
         number: &AccountNumber,
         position: AccountPosition,
     ) -> Result<()> {
