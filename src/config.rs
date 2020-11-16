@@ -2,13 +2,10 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 8, 2020
 
-use super::{
-    http_server::RestApiFeature,
-    include::{
-        clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
-        AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, Currency,
-        DateTime, Deserialize, Duration, Instant, Local, OpenOptions, Result, Serialize, Write,
-    },
+use super::include::{
+    clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
+    AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, Currency,
+    DateTime, Deserialize, Duration, Instant, Local, OpenOptions, Result, Serialize, Write,
 };
 
 #[derive(Debug)]
@@ -75,7 +72,6 @@ pub struct ConfigFile {
     pub db_file_path: String,
     auth_file_path: String,
     pub http_port: u16,
-    pub rest_api_features: Vec<RestApiFeature>,
     pub accounts_to_sync: Vec<AccountToSync>,
     pub account_balance_currency: Currency,
 }

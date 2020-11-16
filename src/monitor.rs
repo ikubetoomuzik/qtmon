@@ -5,7 +5,7 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{AccountNumber, ApiError, Arc, Client, Local, Questrade, Result},
+    include::{AccountNumber, ApiError, Client, Local, Questrade, Result},
     storage::{DBRef, DB},
 };
 
@@ -39,11 +39,7 @@ impl Monitor {
         // Bincode backend for data storage. No matter what it is a Path database.
         let db = DBRef::new(DB::new(&config)?);
         // Start the http server.
-        let _http = HTTPServer::new(
-            config.settings.http_port,
-            Arc::downgrade(&db),
-            &config.settings.rest_api_features,
-        );
+        let _http = HTTPServer::new(config.settings.http_port, db.clone());
         // Return the created Monitor.
         let mut result = Self {
             config,

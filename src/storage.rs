@@ -12,10 +12,10 @@ use super::{
     config::Config,
     include::{
         hash_map, Account, AccountBalance, AccountName, AccountNumber, AccountPosition, Arc,
-        Currency, DateTime, Deserialize, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
-        PathDatabase, PositionSymbol, Result, Serialize, Weak,
+        Currency, DateTime, Deserialize, Duration, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
+        PathDatabase, PositionSymbol, Result, Serialize,
     },
-    myerrors::DBInsertError,
+    myerrors::{DBInsertError, DBRetrieveError},
 };
 
 /// Helper functions
@@ -23,9 +23,15 @@ fn make_dateime_naive(datetime: DateTime<Local>) -> (NaiveDate, NaiveTime) {
     let datetime = datetime.naive_local();
     (datetime.date(), datetime.time())
 }
+fn duration_abs(dur: Duration) -> Duration {
+    if dur < Duration::zero() {
+        -dur
+    } else {
+        dur
+    }
+}
 
 pub type DBRef = Arc<DB>;
-pub type DBRefWeak = Weak<DB>;
 
 #[derive(Debug)]
 #[cfg(feature = "default")]
@@ -81,6 +87,7 @@ impl DBInfo {
         }
     }
 
+    // *** Insert Functions ***
     pub fn insert_account(&mut self, name: AccountName, account: Account) -> Result<()> {
         if self.accounts.keys().any(|k| *k == name) {
             Err(Box::new(DBInsertError::InsertAccountDuplicateNameError))
@@ -91,7 +98,6 @@ impl DBInfo {
             Ok(())
         }
     }
-
     pub fn insert_account_balance(
         &mut self,
         datetime: DateTime<Local>,
@@ -129,7 +135,6 @@ impl DBInfo {
         }
         Ok(())
     }
-
     pub fn insert_account_position(
         &mut self,
         datetime: DateTime<Local>,
@@ -176,22 +181,141 @@ impl DBInfo {
         }
     }
 
+    // *** Reading functions. ***
     pub fn iter_accounts(&self) -> hash_map::Values<'_, String, Account> {
         self.accounts.values()
     }
+
+    // ** get balance info **
+    pub fn get_latest_balance(
+        &self,
+        account_identifier: &str,
+        date: NaiveDate,
+    ) -> Result<DBInfoAccountBalance> {
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let account_number = match self.accounts.get(account_identifier) {
+            // if we find an account by name then we just get the number and return it
+            Some(acct) => &acct.number,
+            None => {
+                // next we check if the value matches any of the numbers for the accounts we have
+                // synced.
+                if None
+                    == self
+                        .accounts
+                        .values()
+                        .find(|acct| acct.number == account_identifier)
+                {
+                    // if we find nothing then we return an error explaining that
+                    return Err(Box::new(
+                        DBRetrieveError::RetrieveAccountBalanceNoAccountError,
+                    ));
+                } else {
+                    // If it matched anything we just return that number.
+                    account_identifier
+                }
+            }
+        };
+        // now that we have a valid account number we use it to pull the balance collection.
+        match self.account_balances.get(account_number) {
+            // in most cases we expect to find a collection.
+            Some(acct_bal_collection) => {
+                // now we go to find the daybalance info for today
+                match acct_bal_collection.iter().find(|abd| abd.date == date) {
+                    // the list stays sorted its sorted every insert, so we just grab last val
+                    Some(todays_bal) => Ok(todays_bal.get_most_recent()),
+                    // if we can't find anything then we raise an error and attach a date
+                    None => Err(Box::new(
+                        DBRetrieveError::RetrieveAccountBalanceNotSyncedDayError(date),
+                    )),
+                }
+            }
+            // if we find no collection then we raise an error to indicate so
+            None => Err(Box::new(
+                DBRetrieveError::RetrieveAccountBalanceNotSyncedError,
+            )),
+        }
+    }
+
+    // ** get balance info **
+    pub fn get_closest_balance(
+        &self,
+        account_identifier: &str,
+        date: NaiveDate,
+        time: NaiveTime,
+    ) -> Result<DBInfoAccountBalance> {
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let account_number = match self.accounts.get(account_identifier) {
+            // if we find an account by name then we just get the number and return it
+            Some(acct) => &acct.number,
+            None => {
+                // next we check if the value matches any of the numbers for the accounts we have
+                // synced.
+                if None
+                    == self
+                        .accounts
+                        .values()
+                        .find(|acct| acct.number == account_identifier)
+                {
+                    // if we find nothing then we return an error explaining that
+                    return Err(Box::new(
+                        DBRetrieveError::RetrieveAccountBalanceNoAccountError,
+                    ));
+                } else {
+                    // If it matched anything we just return that number.
+                    account_identifier
+                }
+            }
+        };
+        // now that we have a valid account number we use it to pull the balance collection.
+        match self.account_balances.get(account_number) {
+            // in most cases we expect to find a collection.
+            Some(acct_bal_collection) => {
+                // now we go to find the daybalance info for today
+                match acct_bal_collection.iter().find(|abd| abd.date == date) {
+                    // the list stays sorted its sorted every insert, so we just grab last val
+                    Some(todays_bal) => {
+                        // we start with the earliest bal available.
+                        let mut return_bal = todays_bal.get_first_bal();
+                        // then we iterate over the day's balances and stop when the absolute value
+                        // of the difference starts increasing, we've already gone too far.
+                        for bal in todays_bal.over_day_balances.iter().skip(1) {
+                            if duration_abs(time - bal.time_retrieved)
+                                <= duration_abs(time - return_bal.time_retrieved)
+                            {
+                                return_bal = bal.clone();
+                                continue;
+                            } else {
+                                break;
+                            }
+                        }
+                        Ok(return_bal)
+                    }
+                    // if we can't find anything then we raise an error and attach a date
+                    None => Err(Box::new(
+                        DBRetrieveError::RetrieveAccountBalanceNotSyncedDayError(date),
+                    )),
+                }
+            }
+            // if we find no collection then we raise an error to indicate so
+            None => Err(Box::new(
+                DBRetrieveError::RetrieveAccountBalanceNotSyncedError,
+            )),
+        }
+    }
 }
 
+/// pub type def for the vector of saved day info
 type DBInfoAccountBalanceCollection = Vec<DBInfoAccountBalanceDay>;
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-struct DBInfoAccountBalance {
-    currency: Currency,
-    cash: f64,
-    market_value: f64,
-    total_equity: f64,
-    buying_power: f64,
-    maitenance_excess: f64,
-    time_retrieved: NaiveTime,
+pub struct DBInfoAccountBalance {
+    pub currency: Currency,
+    pub cash: f64,
+    pub market_value: f64,
+    pub total_equity: f64,
+    pub buying_power: f64,
+    pub maitenance_excess: f64,
+    pub time_retrieved: NaiveTime,
 }
 
 impl DBInfoAccountBalance {
@@ -239,8 +363,18 @@ impl DBInfoAccountBalanceDay {
             .sort_unstable_by(|a, b| a.time_retrieved.cmp(&b.time_retrieved));
     }
 
-    fn get_most_recent(&self) -> &DBInfoAccountBalance {
-        self.over_day_balances.last().unwrap()
+    fn get_most_recent(&self) -> DBInfoAccountBalance {
+        match self.over_day_balances.last() {
+            Some(b) => b.clone(),
+            None => self.start_of_day_bal.clone(),
+        }
+    }
+
+    fn get_first_bal(&self) -> DBInfoAccountBalance {
+        match self.over_day_balances.first() {
+            Some(b) => b.clone(),
+            None => self.start_of_day_bal.clone(),
+        }
     }
 }
 
