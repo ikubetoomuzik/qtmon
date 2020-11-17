@@ -12,11 +12,19 @@ use super::{
     config::Config,
     include::{
         hash_map, Account, AccountBalance, AccountName, AccountNumber, AccountPosition, Arc,
-        Currency, DateTime, Deserialize, Duration, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
-        PathDatabase, PositionSymbol, Result, Serialize,
+        DateTime, Deserialize, Duration, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
+        PathDatabase, Result, Serialize,
     },
     myerrors::{DBInsertError, DBRetrieveError},
 };
+
+/// Sub modules
+mod balance;
+mod position;
+
+/// Re-export sub-modules so we can read from them in other modules.
+pub use balance::*;
+pub use position::*;
 
 /// Helper functions
 fn make_dateime_naive(datetime: DateTime<Local>) -> (NaiveDate, NaiveTime) {
@@ -107,11 +115,12 @@ impl DBInfo {
     ) -> Result<()> {
         // Seperate the date and time into their easily serializable parts.
         let (date, time) = make_dateime_naive(datetime);
-        // Get the info related to the account we are trying to insert for. If it's not there
-        // something is definitely wrong so we send up an error.
+        // check to ensure that the number in args is a valid account number.
         if None == self.accounts.values().find(|val| val.number == *number) {
             return Err(Box::new(DBInsertError::InsertAccountBalanceNoAccountError));
         }
+        // Get the info related to the account we are trying to insert for. If it's not there
+        // something is definitely wrong so we send up an error.
         let acct_bal = match self.account_balances.get_mut(number) {
             Some(abs) => abs,
             None => {
@@ -327,118 +336,6 @@ impl DBInfo {
             None => Err(Box::new(
                 DBRetrieveError::RetrieveAccountBalanceNotSyncedError,
             )),
-        }
-    }
-}
-
-/// pub type def for the vector of saved day info
-type DBInfoAccountBalanceCollection = Vec<DBInfoAccountBalanceDay>;
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-pub struct DBInfoAccountBalance {
-    pub currency: Currency,
-    pub cash: f64,
-    pub market_value: f64,
-    pub total_equity: f64,
-    pub buying_power: f64,
-    pub maitenance_excess: f64,
-    pub time_retrieved: NaiveTime,
-}
-
-impl DBInfoAccountBalance {
-    fn new(balance: AccountBalance, time_retrieved: NaiveTime) -> Self {
-        Self {
-            currency: balance.currency,
-            cash: balance.cash.as_f64().unwrap(),
-            market_value: balance.market_value.as_f64().unwrap(),
-            total_equity: balance.total_equity.as_f64().unwrap(),
-            buying_power: balance.buying_power.as_f64().unwrap(),
-            maitenance_excess: balance.maintenance_excess.as_f64().unwrap(),
-            time_retrieved,
-        }
-    }
-}
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-/// Struct to contain a whole day's balances.
-struct DBInfoAccountBalanceDay {
-    date: NaiveDate,
-    start_of_day_bal: DBInfoAccountBalance,
-    over_day_balances: Vec<DBInfoAccountBalance>,
-}
-
-impl DBInfoAccountBalanceDay {
-    fn new(date: NaiveDate, start_of_day_bal: DBInfoAccountBalance) -> Self {
-        Self {
-            date,
-            start_of_day_bal,
-            over_day_balances: Vec::new(),
-        }
-    }
-    fn insert_bal(&mut self, balance: DBInfoAccountBalance) -> Result<()> {
-        if self.over_day_balances.iter().any(|odb| *odb == balance) {
-            Err(Box::new(DBInsertError::InsertAccountBalanceDuplicateError))
-        } else {
-            self.over_day_balances.push(balance);
-            self.sort();
-            Ok(())
-        }
-    }
-
-    fn sort(&mut self) {
-        self.over_day_balances
-            .sort_unstable_by(|a, b| a.time_retrieved.cmp(&b.time_retrieved));
-    }
-
-    fn get_most_recent(&self) -> &DBInfoAccountBalance {
-        match self.over_day_balances.last() {
-            Some(b) => b,
-            None => &self.start_of_day_bal,
-        }
-    }
-
-    fn get_first_bal(&self) -> &DBInfoAccountBalance {
-        match self.over_day_balances.first() {
-            Some(b) => b,
-            None => &self.start_of_day_bal,
-        }
-    }
-}
-
-type DBInfoAccountPositionDay = HashMap<NaiveDate, Vec<DBInfoAccountPosition>>;
-type DBInfoAccountPositionCollection = HashMap<PositionSymbol, DBInfoAccountPositionDay>;
-
-#[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
-/// Second item is positions.
-/// This is the wrapper for our positions.
-pub struct DBInfoAccountPosition {
-    pub symbol: PositionSymbol,
-    pub open_quantity: f64,
-    pub closed_quantity: f64,
-    pub current_market_value: f64,
-    pub current_price: f64,
-    pub average_entry_price: f64,
-    pub closed_pnl: f64,
-    pub day_pnl: f64,
-    pub open_pnl: f64,
-    pub total_cost: f64,
-    pub time_retrieved: NaiveTime,
-}
-
-impl DBInfoAccountPosition {
-    fn new(position: AccountPosition, time_retrieved: NaiveTime) -> Self {
-        Self {
-            symbol: position.symbol,
-            open_quantity: position.open_quantity.as_f64().unwrap(),
-            closed_quantity: position.closed_quantity.as_f64().unwrap(),
-            current_market_value: position.current_market_value.as_f64().unwrap(),
-            current_price: position.current_price.as_f64().unwrap(),
-            average_entry_price: position.average_entry_price.as_f64().unwrap(),
-            closed_pnl: position.closed_profit_and_loss.as_f64().unwrap(),
-            day_pnl: position.day_profit_and_loss.as_f64().unwrap(),
-            open_pnl: position.open_profit_and_loss.as_f64().unwrap(),
-            total_cost: position.total_cost.as_f64().unwrap(),
-            time_retrieved,
         }
     }
 }

@@ -5,7 +5,7 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{AccountNumber, ApiError, Client, Local, Questrade, Result},
+    include::{tokio, try_join, AccountNumber, ApiError, Client, Local, Questrade, Result},
     storage::{DBRef, DB},
 };
 
@@ -17,6 +17,9 @@ pub struct Monitor {
 }
 
 impl Monitor {
+    // *** public functions **
+    /// Constructor function for the main struct of the project.
+    /// If this function errors out then something is wrong.
     pub async fn new(mut config: Config) -> Result<Self> {
         // Set up our qtrade variable to be set in the match statement.
         let qtrade: Questrade = match &config.auth {
@@ -57,6 +60,44 @@ impl Monitor {
         // Returned the created interface.
         Ok(result)
     }
+    /// Main event loop of the program. Runs our different async functions
+    /// with timeouts to make sure that we retry on the delay given by user.
+    pub async fn execute_runtime(&mut self) -> Result<()> {
+        loop {
+            // announce beginning of the loop
+            println!("Beginning exectution loop.");
+            // calculate the next timeout based on the delay set by user
+            let timeout = tokio::time::Instant::now()
+                + tokio::time::Duration::from_secs(self.config.settings.delay);
+            // announce start of account sync
+            println!("Starting account sync..");
+            // if the timeout triggers we get and Err so we announce that the timeout triggered,
+            // if not the we get Ok. either way we just announce what happened and move on
+            if let Err(_) = tokio::time::timeout_at(timeout, self.sync_accounts()).await {
+                println!("Account sync was not completed within 5 minutes.");
+            } else {
+                println!("Account sync complete!");
+            }
+            // run our balance and position syncs together so if there is a delay in either we use
+            // that time to start the next request.
+            match try_join!(
+                tokio::time::timeout_at(timeout, self.sync_account_balances()),
+                tokio::time::timeout_at(timeout, self.sync_account_positions())
+            ) {
+                Ok(_) => println!("Balance and position sync successful."),
+                Err(_) => println!("Balance or position sync timeout."),
+            }
+            // once we are done all of the syncing we save the info,
+            // currently the only way to exit this loop is this function failing
+            self.save_db()?;
+            // if we still have time to wait we announce it
+            if tokio::time::Instant::now() < timeout {
+                println!("Waiting for next execution..");
+            }
+            // finally we delay here until there is something to do
+            tokio::time::delay_until(timeout).await;
+        }
+    }
 
     async fn renew_auth(&mut self) -> Result<()> {
         // Here we make the request to the questrade server to get new auth info.
@@ -69,7 +110,7 @@ impl Monitor {
         Ok(())
     }
 
-    pub async fn sync_accounts(&mut self) -> Result<()> {
+    async fn sync_accounts(&mut self) -> Result<()> {
         let mut qtrade_result = match self.qtrade.accounts().await {
             Ok(accs) => accs,
             Err(e) => {
@@ -106,7 +147,7 @@ impl Monitor {
         Ok(())
     }
 
-    pub async fn sync_account_balances(&mut self) -> Result<()> {
+    async fn sync_account_balances(&self) -> Result<()> {
         for acct_num in (*self.db)
             .db
             .read(|db_info| {
@@ -152,7 +193,7 @@ impl Monitor {
         Ok(())
     }
 
-    pub async fn sync_account_positions(&mut self) -> Result<()> {
+    async fn sync_account_positions(&self) -> Result<()> {
         for acct_num in (*self.db)
             .db
             .read(|db_info| {
@@ -184,7 +225,8 @@ impl Monitor {
         }
         Ok(())
     }
-    pub fn save_db(&self) -> Result<()> {
+
+    fn save_db(&self) -> Result<()> {
         (*self.db).db.save()?;
         Ok(())
     }

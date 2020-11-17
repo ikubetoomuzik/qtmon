@@ -13,16 +13,8 @@ mod storage;
 
 // Local use statements.
 use config::Config;
-use include::{io, tokio, Result};
+use include::{tokio, Result};
 use monitor::Monitor;
-
-// temp delay_until_input function
-fn delay_until_input() -> Result<()> {
-    let mut buffer = String::new();
-    let stdin = io::stdin();
-    stdin.read_line(&mut buffer)?;
-    Ok(())
-}
 
 #[tokio::main]
 // And now we do the main function, wrapped with tokio so it can be async.
@@ -33,18 +25,8 @@ async fn main() -> Result<()> {
     // it also makes sure that all auth info is valid.
     let mut mon = Monitor::new(conf).await?;
     // sync the accounts and for now we print errors.
-    if let Err(e) = mon.sync_accounts().await {
+    if let Err(e) = mon.execute_runtime().await {
         eprintln!("Error1:\n{}", e);
     }
-    // sync the balances and for now we print errors.
-    if let Err(e) = mon.sync_account_balances().await {
-        eprintln!("Error2:\n{}", e);
-    }
-    // sync the positions and for now we print errors.
-    if let Err(e) = mon.sync_account_positions().await {
-        eprintln!("Error3:\n{}", e);
-    }
-    delay_until_input()?;
-    mon.save_db()?;
     Ok(())
 }

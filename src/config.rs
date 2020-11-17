@@ -74,6 +74,7 @@ pub struct ConfigFile {
     pub http_port: u16,
     pub accounts_to_sync: Vec<AccountToSync>,
     pub account_balance_currency: Currency,
+    pub delay: u64,
 }
 
 impl ConfigFile {

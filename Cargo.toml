@@ -11,6 +11,7 @@ bincode = ["rustbreak/bin_enc"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
+futures = "*"
 dirs = "3.0.1"
 clap = "2.33.3"
 chrono = { version = "0.4", features = ["serde"] }

@@ -6,6 +6,7 @@
 pub use chrono::{DateTime, Duration, Local, NaiveDate, NaiveTime};
 pub use clap::{clap_app, AppSettings::ColoredHelp};
 pub use dirs::config_dir;
+pub use futures::{future::FutureExt, pin_mut, select, try_join};
 pub use questrade_rs::{
     Account, AccountBalance, AccountPosition, AccountStatus, AccountType, ApiError,
     AuthenticationInfo, ClientAccountType, Currency, Questrade,
