@@ -188,8 +188,4 @@ impl Monitor {
         (*self.db).db.save()?;
         Ok(())
     }
-
-    pub fn print_db(&self) {
-        println!("DB:\n{:#?}", self.db);
-    }
 }

@@ -193,50 +193,13 @@ impl DBInfo {
         date: NaiveDate,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = match self.accounts.get(account_identifier) {
-            // if we find an account by name then we just get the number and return it
-            Some(acct) => &acct.number,
-            None => {
-                // next we check if the value matches any of the numbers for the accounts we have
-                // synced.
-                if None
-                    == self
-                        .accounts
-                        .values()
-                        .find(|acct| acct.number == account_identifier)
-                {
-                    // if we find nothing then we return an error explaining that
-                    return Err(Box::new(
-                        DBRetrieveError::RetrieveAccountBalanceNoAccountError,
-                    ));
-                } else {
-                    // If it matched anything we just return that number.
-                    account_identifier
-                }
-            }
-        };
+        let account_number = self.acct_identifier_to_number(account_identifier.to_string())?;
         // now that we have a valid account number we use it to pull the balance collection.
-        match self.account_balances.get(account_number) {
-            // in most cases we expect to find a collection.
-            Some(acct_bal_collection) => {
-                // now we go to find the daybalance info for today
-                match acct_bal_collection.iter().find(|abd| abd.date == date) {
-                    // the list stays sorted its sorted every insert, so we just grab last val
-                    Some(todays_bal) => Ok(todays_bal.get_most_recent()),
-                    // if we can't find anything then we raise an error and attach a date
-                    None => Err(Box::new(
-                        DBRetrieveError::RetrieveAccountBalanceNotSyncedDayError(date),
-                    )),
-                }
-            }
-            // if we find no collection then we raise an error to indicate so
-            None => Err(Box::new(
-                DBRetrieveError::RetrieveAccountBalanceNotSyncedError,
-            )),
-        }
+        let todays_bal = self.list_balances_of_date(&account_number, &date)?;
+        // Then if all goes well we return the most recent bal.
+        Ok(todays_bal.get_most_recent().clone())
     }
-
-    // ** get balance info **
+    // function to find the balance closest to a date & time.
     pub fn get_closest_balance(
         &self,
         account_identifier: &str,
@@ -244,59 +207,123 @@ impl DBInfo {
         time: NaiveTime,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = match self.accounts.get(account_identifier) {
-            // if we find an account by name then we just get the number and return it
-            Some(acct) => &acct.number,
-            None => {
-                // next we check if the value matches any of the numbers for the accounts we have
-                // synced.
-                if None
-                    == self
-                        .accounts
-                        .values()
-                        .find(|acct| acct.number == account_identifier)
-                {
-                    // if we find nothing then we return an error explaining that
-                    return Err(Box::new(
-                        DBRetrieveError::RetrieveAccountBalanceNoAccountError,
-                    ));
-                } else {
-                    // If it matched anything we just return that number.
-                    account_identifier
-                }
-            }
-        };
+        let account_number = self.acct_identifier_to_number(account_identifier.to_string())?;
         // now that we have a valid account number we use it to pull the balance collection.
-        match self.account_balances.get(account_number) {
-            // in most cases we expect to find a collection.
-            Some(acct_bal_collection) => {
-                // now we go to find the daybalance info for today
-                match acct_bal_collection.iter().find(|abd| abd.date == date) {
-                    // the list stays sorted its sorted every insert, so we just grab last val
-                    Some(todays_bal) => {
-                        // we start with the earliest bal available.
-                        let mut return_bal = todays_bal.get_first_bal();
-                        // then we iterate over the day's balances and stop when the absolute value
-                        // of the difference starts increasing, we've already gone too far.
-                        for bal in todays_bal.over_day_balances.iter().skip(1) {
-                            if duration_abs(time - bal.time_retrieved)
-                                <= duration_abs(time - return_bal.time_retrieved)
-                            {
-                                return_bal = bal.clone();
-                                continue;
-                            } else {
-                                break;
-                            }
-                        }
-                        Ok(return_bal)
-                    }
-                    // if we can't find anything then we raise an error and attach a date
-                    None => Err(Box::new(
-                        DBRetrieveError::RetrieveAccountBalanceNotSyncedDayError(date),
-                    )),
+        let todays_bal = self.list_balances_of_date(&account_number, &date)?;
+        // we start with the first bal and then check from there, but to avoid having to iterate
+        // over everything we use a for loop. So we can leave whenever.
+        let mut return_bal = todays_bal.get_first_bal();
+        // then we iterate over the day's balances and stop when the absolute value
+        // of the difference starts increasing, we've already gone too far.
+        for bal in todays_bal.over_day_balances.iter().skip(1) {
+            if duration_abs(time - bal.time_retrieved)
+                <= duration_abs(time - return_bal.time_retrieved)
+            {
+                return_bal = bal;
+                continue;
+            } else {
+                break;
+            }
+        }
+        // Once we get to the end or break early we return whatever is in the var.
+        Ok(return_bal.clone())
+    }
+    // function to get a list of position symbols.
+    pub fn get_position_symbols(&self, acct_ident: String) -> Result<Vec<String>> {
+        let acc_num = self.acct_identifier_to_number(acct_ident)?;
+        match self.account_positions.get(&acc_num) {
+            Some(ap) => Ok(ap.keys().map(|k| k.to_string()).collect()),
+            None => Err(Box::new(
+                DBRetrieveError::RetrieveAccountPositionAllNotSyncedError,
+            )),
+        }
+    }
+    pub fn get_latest_position(
+        &self,
+        acct_ident: String,
+        position_symbol: String,
+        date: NaiveDate,
+    ) -> Result<DBInfoAccountPosition> {
+        let acc_num = self.acct_identifier_to_number(acct_ident)?;
+        let day_list_of_positions =
+            self.list_positions_of_date(&acc_num, &position_symbol, &date)?;
+        Ok(day_list_of_positions.last().unwrap().clone())
+    }
+    pub fn get_closest_position(
+        &self,
+        acct_ident: String,
+        position_symbol: String,
+        date: NaiveDate,
+        time: NaiveTime,
+    ) -> Result<DBInfoAccountPosition> {
+        let acc_num = self.acct_identifier_to_number(acct_ident)?;
+        let day_list_of_positions =
+            self.list_positions_of_date(&acc_num, &position_symbol, &date)?;
+        let mut result = day_list_of_positions.first().unwrap();
+        for pos in day_list_of_positions.iter().skip(1) {
+            if duration_abs(time - pos.time_retrieved) <= duration_abs(time - result.time_retrieved)
+            {
+                result = pos;
+                continue;
+            } else {
+                break;
+            }
+        }
+        Ok(result.clone())
+    }
+    // ** Helper methods. **
+    fn acct_identifier_to_number(&self, acct_ident: String) -> Result<String> {
+        match self.accounts.get(&acct_ident) {
+            Some(acct) => Ok(acct.number.clone()),
+            None => {
+                if self.iter_accounts().any(|ac| ac.number == acct_ident) {
+                    Ok(acct_ident)
+                } else {
+                    Err(Box::new(DBRetrieveError::RetrieveAccountNoAccountError(
+                        acct_ident,
+                    )))
                 }
             }
-            // if we find no collection then we raise an error to indicate so
+        }
+    }
+    fn list_positions_of_date(
+        &self,
+        acct_num: &str,
+        symbol: &str,
+        date: &NaiveDate,
+    ) -> Result<&Vec<DBInfoAccountPosition>> {
+        match self.account_positions.get(acct_num) {
+            Some(pos_collection) => match pos_collection.get(symbol) {
+                Some(pos_days) => match pos_days.get(date) {
+                    Some(pos_day) => Ok(pos_day),
+                    None => Err(Box::new(
+                        DBRetrieveError::RetrieveAccountPositionNotSyncedDayError(
+                            symbol.to_string(),
+                            date.clone(),
+                        ),
+                    )),
+                },
+                None => Err(Box::new(
+                    DBRetrieveError::RetrieveAccountPositionNotSyncedError(symbol.to_string()),
+                )),
+            },
+            None => Err(Box::new(
+                DBRetrieveError::RetrieveAccountPositionAllNotSyncedError,
+            )),
+        }
+    }
+    fn list_balances_of_date(
+        &self,
+        acct_num: &str,
+        date: &NaiveDate,
+    ) -> Result<&DBInfoAccountBalanceDay> {
+        match self.account_balances.get(acct_num) {
+            Some(balances_days) => match balances_days.iter().find(|bd| bd.date == *date) {
+                Some(bal_day) => Ok(bal_day),
+                None => Err(Box::new(
+                    DBRetrieveError::RetrieveAccountBalanceNotSyncedDayError(date.clone()),
+                )),
+            },
             None => Err(Box::new(
                 DBRetrieveError::RetrieveAccountBalanceNotSyncedError,
             )),
@@ -363,17 +390,17 @@ impl DBInfoAccountBalanceDay {
             .sort_unstable_by(|a, b| a.time_retrieved.cmp(&b.time_retrieved));
     }
 
-    fn get_most_recent(&self) -> DBInfoAccountBalance {
+    fn get_most_recent(&self) -> &DBInfoAccountBalance {
         match self.over_day_balances.last() {
-            Some(b) => b.clone(),
-            None => self.start_of_day_bal.clone(),
+            Some(b) => b,
+            None => &self.start_of_day_bal,
         }
     }
 
-    fn get_first_bal(&self) -> DBInfoAccountBalance {
+    fn get_first_bal(&self) -> &DBInfoAccountBalance {
         match self.over_day_balances.first() {
-            Some(b) => b.clone(),
-            None => self.start_of_day_bal.clone(),
+            Some(b) => b,
+            None => &self.start_of_day_bal,
         }
     }
 }
@@ -384,18 +411,18 @@ type DBInfoAccountPositionCollection = HashMap<PositionSymbol, DBInfoAccountPosi
 #[derive(Debug, PartialEq, Serialize, Deserialize, Clone)]
 /// Second item is positions.
 /// This is the wrapper for our positions.
-struct DBInfoAccountPosition {
-    symbol: PositionSymbol,
-    open_quantity: f64,
-    closed_quantity: f64,
-    current_market_value: f64,
-    current_price: f64,
-    average_entry_price: f64,
-    closed_pnl: f64,
-    day_pnl: f64,
-    open_pnl: f64,
-    total_cost: f64,
-    time_retrieved: NaiveTime,
+pub struct DBInfoAccountPosition {
+    pub symbol: PositionSymbol,
+    pub open_quantity: f64,
+    pub closed_quantity: f64,
+    pub current_market_value: f64,
+    pub current_price: f64,
+    pub average_entry_price: f64,
+    pub closed_pnl: f64,
+    pub day_pnl: f64,
+    pub open_pnl: f64,
+    pub total_cost: f64,
+    pub time_retrieved: NaiveTime,
 }
 
 impl DBInfoAccountPosition {

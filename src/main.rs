@@ -44,7 +44,6 @@ async fn main() -> Result<()> {
     if let Err(e) = mon.sync_account_positions().await {
         eprintln!("Error3:\n{}", e);
     }
-    mon.print_db();
     delay_until_input()?;
     mon.save_db()?;
     Ok(())

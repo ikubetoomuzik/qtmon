@@ -51,9 +51,14 @@ impl fmt::Display for DBInsertError {
 #[derive(Debug)]
 // Enum representing errors that are possible during inserts into my database.
 pub enum DBRetrieveError {
+    RetrieveAccountNoAccountError(String),
+    RetrieveAccountPositionNotSyncedError(String),
+    RetrieveAccountPositionAllNotSyncedError,
+    RetrieveAccountPositionNoAccountError,
     RetrieveAccountBalanceNoAccountError,
     RetrieveAccountBalanceNotSyncedError,
     RetrieveAccountBalanceNotSyncedDayError(NaiveDate),
+    RetrieveAccountPositionNotSyncedDayError(String, NaiveDate),
 }
 
 impl error::Error for DBRetrieveError {}
@@ -61,6 +66,27 @@ impl error::Error for DBRetrieveError {}
 impl fmt::Display for DBRetrieveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RetrieveAccountNoAccountError(s) => write!(
+                f,
+                "Error looking up account with: {}! No such account found by number or name.",
+                s
+            ),
+            Self::RetrieveAccountPositionNoAccountError => write!(
+                f,
+                "Could not find position! No account matching identifier in DB."
+            ),
+            Self::RetrieveAccountPositionAllNotSyncedError => write!(
+                f,
+                "Could not find position! No positions at all synced on account."
+            ),
+            Self::RetrieveAccountPositionNotSyncedError(s) => {
+                write!(f, "Could not find position: {}! Not synced for account.", s)
+            }
+            Self::RetrieveAccountPositionNotSyncedDayError(s, date) => write!(
+                f,
+                "Could not find position! No {} positions synced for account date: {}.",
+                s, date
+            ),
             Self::RetrieveAccountBalanceNoAccountError => write!(
                 f,
                 "Could not find balance! No account matching identifier in DB."
