@@ -11,12 +11,14 @@ bincode = ["rustbreak/bin_enc"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 [dependencies]
-futures = "*"
+flexi_logger = { version = "0.16", features = ["compress"] }
+log = "0.4"
+futures = "0.3"
 dirs = "3.0.1"
 clap = "2.33.3"
 chrono = { version = "0.4", features = ["serde"] }
-serde = "*"
-ron = "*"
+serde = "1.0"
+ron = "0.6"
 tokio = { version = "0.2", features = ["full"] }
 warp = "0.2"
 questrade-rs = "0.1"

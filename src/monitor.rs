@@ -65,37 +65,49 @@ impl Monitor {
     pub async fn execute_runtime(&mut self) -> Result<()> {
         loop {
             // announce beginning of the loop
-            println!("Beginning exectution loop.");
+            println!("Beginning exectution loop:");
             // calculate the next timeout based on the delay set by user
             let timeout = tokio::time::Instant::now()
                 + tokio::time::Duration::from_secs(self.config.settings.delay);
             // announce start of account sync
-            println!("Starting account sync..");
+            println!("Starting account sync...");
             // if the timeout triggers we get and Err so we announce that the timeout triggered,
             // if not the we get Ok. either way we just announce what happened and move on
             if let Err(_) = tokio::time::timeout_at(timeout, self.sync_accounts()).await {
                 println!("Account sync was not completed within 5 minutes.");
             } else {
-                println!("Account sync complete!");
+                println!("Account sync successful.");
             }
+            // announce the start of next syncs.
+            println!("Starting balance and position sync...");
             // run our balance and position syncs together so if there is a delay in either we use
             // that time to start the next request.
             match try_join!(
                 tokio::time::timeout_at(timeout, self.sync_account_balances()),
                 tokio::time::timeout_at(timeout, self.sync_account_positions())
             ) {
-                Ok(_) => println!("Balance and position sync successful."),
-                Err(_) => println!("Balance or position sync timeout."),
+                Ok((Ok(_), Ok(_))) => println!("Balance and position sync successful."),
+                Ok((Err(e), Ok(_))) => println!("Error during balance sync: {}.", e),
+                Ok((Ok(_), Err(e))) => println!("Error during position sync: {}.", e),
+                Ok((Err(e1), Err(e2))) => println!(
+                    "Error during balance and position sync.\n\
+                    Balance error: {}. Position error: {}.",
+                    e1, e2
+                ),
+                Err(_) => println!("Balance and position sync timeout."),
             }
             // once we are done all of the syncing we save the info,
             // currently the only way to exit this loop is this function failing
+            println!("Saving DB...");
             self.save_db()?;
+            println!("DB save successful.");
             // if we still have time to wait we announce it
             if tokio::time::Instant::now() < timeout {
                 println!("Waiting for next execution..");
             }
             // finally we delay here until there is something to do
             tokio::time::delay_until(timeout).await;
+            print!("\n");
         }
     }
 
@@ -160,15 +172,7 @@ impl Monitor {
         {
             let balances = match self.qtrade.account_balance(&acct_num).await {
                 Ok(acct_bals) => acct_bals,
-                Err(e) => {
-                    let e = e.downcast::<ApiError>()?;
-                    match *e {
-                        ApiError::NotAuthenticatedError(_) => {
-                            self.qtrade.account_balance(&acct_num).await?
-                        }
-                        _ => return Err(e),
-                    }
-                }
+                Err(e) => return Err(e),
             };
             (*self.db).db.write(|db_info| -> Result<()> {
                 db_info.insert_account_balance(
@@ -206,15 +210,7 @@ impl Monitor {
         {
             let positions = match self.qtrade.account_positions(&acct_num).await {
                 Ok(acct_poss) => acct_poss,
-                Err(e) => {
-                    let e = e.downcast::<ApiError>()?;
-                    match *e {
-                        ApiError::NotAuthenticatedError(_) => {
-                            self.qtrade.account_positions(&acct_num).await?
-                        }
-                        _ => return Err(e),
-                    }
-                }
+                Err(e) => return Err(e),
             };
             for pos in positions {
                 (*self.db).db.write(|db_info| -> Result<()> {
