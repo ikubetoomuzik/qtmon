@@ -1,5 +1,7 @@
 /target
 /logs
+/files
 default/auth.ron
 default/db*
+default/logs
 tags

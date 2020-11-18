@@ -1,11 +1,40 @@
 ConfigFile(
-    auth_file_path: "default/auth.ron",
-    db_file_path: "default/db.ron",
-    log_file_dir: "logs",
-    file_log_level: Info,
-    stdout_log_level: Warn,
-    http_port: 42069,
-    accounts_to_sync: [AccountToSync("Primary", [IsPrimary(true)])],
-    account_balance_currency: CAD,
-    delay: 300,
+	// Where you want to store the auth info. If it's relative it will be measured relative to 
+	// the directory of the config file.
+	auth_file_path: "auth.ron",
+	// Where you want to store the database. If it's relative it will be measured relative to 
+	// the directory of the config file.
+	db_file_path: "db.ron",
+	// The directory to store logs in, one active and up to 5 zipped archives. If it's relative
+	// it will be measured relative to the directory of the config file.
+	log_file_dir: "logs",
+	// File & Stdout log level use the same enum to make a choice. The levels of log detail are:
+	// None => Print no logs at all. 
+	// Error => Print only error logs. The most severe events.
+	// Warn => Print Error & Warn level logs. The most severe events and slight events that the 
+	// program can easily handle. 
+	// Info => Print all logs that this program has. Notifications for the start and completion 
+	// events as well as all previously described error logs. 
+	file_log_level: Info,
+	stdout_log_level: Info,
+	// Local port for the REST Api server to listen on.
+	http_port: 49494,
+	// List of AccountToSync objects that define which accounts you want to sync.
+	// They are of the form AccountToSync($StringRepresentingName, $ListofAccountSelectorObjects).
+	// And AccountSelector objects are an enum that can be any of:
+	// Number(String) => Where the string is your account number.
+	// IsPrimary(bool) => pretty simple, true or false whether the account you want is primary.
+	// IsBilling(bool) => read above but substitute billing for primary.
+	// AccountType(AccountType) => Where AccountType is one of: Cash, Margin, TFSA, RRSP, SRRSP,
+	// LRRSP, LIRA, LIF, RIF, SRIF, LRIF, RRIF, PRIF, RESP, or FRESP.
+	// ClientAccountType(ClientAccountType) => Where ClientAccountType is one of: Individual, Joint,
+	// InformalTrust, Corporation, InvestmentClub, FormalTrust, Partnership, SoleProprietorship,
+	// Family, JointAndInformalTrust, or Institution.
+	// Status(AccountStatus) => Where AccountStatus is one of: Active, SuspendedClosed, 
+	// SuspendedViewOnly, Liquidate, or Closed.
+	accounts_to_sync: [AccountToSync("Primary", [IsPrimary(true)])],
+	// Where the currency can be CAD or USD.
+	account_balance_currency: CAD,
+	// The delay in seconds you want between Api syncs.
+	delay: 300,
 )

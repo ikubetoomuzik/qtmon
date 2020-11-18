@@ -24,7 +24,12 @@ impl Monitor {
     /// Constructor function for the main struct of the project.
     /// If this function errors out then something is wrong.
     pub async fn new(mut config: Config) -> Result<Self> {
-        info!("[{}] Initializing application...", Local::now());
+        let init_date_time = Local::now().naive_local();
+        info!(
+            "Initializing application @ [{}] on [{}]...",
+            init_date_time.time().format("%H:%M:%S"),
+            init_date_time.date().format("%Y-%m-%d"),
+        );
         // Set up our qtrade variable to be set in the match statement.
         info!("Loading questrade authentication info..");
         let qtrade: Questrade = match &config.auth {
@@ -84,8 +89,13 @@ impl Monitor {
     /// with timeouts to make sure that we retry on the delay given by user.
     pub async fn execute_runtime(&mut self) -> Result<()> {
         loop {
+            let loop_date_time = Local::now().naive_local();
             // announce beginning of the loop
-            info!("[{}] Beginning exectution loop:", Local::now());
+            info!(
+                "Beginning exectution loop @ [{}] on [{}]:",
+                loop_date_time.time().format("%H:%M:%S"),
+                loop_date_time.date().format("%Y-%m-%d"),
+            );
             // calculate the next timeout based on the delay set by user
             let timeout = tokio::time::Instant::now()
                 + tokio::time::Duration::from_secs(self.config.settings.delay);
