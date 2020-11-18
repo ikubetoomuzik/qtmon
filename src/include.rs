@@ -6,7 +6,12 @@
 pub use chrono::{DateTime, Duration, Local, NaiveDate, NaiveTime};
 pub use clap::{clap_app, AppSettings::ColoredHelp};
 pub use dirs::config_dir;
+pub use flexi_logger::{
+    colored_default_format, default_format, AdaptiveFormat, Cleanup, Criterion, Duplicate,
+    LevelFilter, LogSpecBuilder, Logger, Naming, ReconfigurationHandle,
+};
 pub use futures::{future::FutureExt, pin_mut, select, try_join};
+pub use log::{error, info, warn};
 pub use questrade_rs::{
     Account, AccountBalance, AccountPosition, AccountStatus, AccountType, ApiError,
     AuthenticationInfo, ClientAccountType, Currency, Questrade,
@@ -28,7 +33,8 @@ pub use std::{
 pub use tokio;
 pub use warp::{
     self,
-    reply::{json, Json},
+    http::StatusCode,
+    reply::{json, with_status, Json},
 };
 
 // Feature specfic use statements.

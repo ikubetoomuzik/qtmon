@@ -5,7 +5,10 @@
 use super::{
     config::{AuthInfo, Config},
     http_server::HTTPServer,
-    include::{tokio, try_join, AccountNumber, ApiError, Client, Local, Questrade, Result},
+    include::{
+        error, info, tokio, try_join, warn, AccountNumber, ApiError, Client, Local, Questrade,
+        Result,
+    },
     storage::{DBRef, DB},
 };
 
@@ -21,12 +24,18 @@ impl Monitor {
     /// Constructor function for the main struct of the project.
     /// If this function errors out then something is wrong.
     pub async fn new(mut config: Config) -> Result<Self> {
+        info!("[{}] Initializing application...", Local::now());
         // Set up our qtrade variable to be set in the match statement.
+        info!("Loading questrade authentication info..");
         let qtrade: Questrade = match &config.auth {
             // If its just a token we use it to authenticate and then save our new info.
             AuthInfo::RefreshToken(rt) => {
                 let qtrade = Questrade::new();
-                qtrade.authenticate(rt, false).await?;
+                info!("Attempting initial auth with token: {}", rt);
+                match qtrade.authenticate(rt, false).await {
+                    Ok(_) => info!("Initial auth successful!"),
+                    Err(e) => error!("Initial auth failed, with error: {}", e),
+                }
                 config.save_new_auth_info(qtrade.get_auth_info().unwrap())?;
                 qtrade
             }
@@ -38,9 +47,20 @@ impl Monitor {
                 qtrade
             }
         };
+        info!("Questrade load complete.");
         // Set up the Rustbreak DB. Depending on enabled features it can have a Ron, Yaml, or
         // Bincode backend for data storage. No matter what it is a Path database.
-        let db = DBRef::new(DB::new(&config)?);
+        info!("Loading DataBase...");
+        let db = DBRef::new(match DB::new(&config) {
+            Ok(db) => {
+                info!("DataBase load complete.");
+                db
+            }
+            Err(e) => {
+                error!("FATAL ERROR! Could not load DataBase.");
+                return Err(e);
+            }
+        });
         // Start the http server.
         let _http = HTTPServer::new(config.settings.http_port, db.clone());
         // Return the created Monitor.
@@ -65,57 +85,63 @@ impl Monitor {
     pub async fn execute_runtime(&mut self) -> Result<()> {
         loop {
             // announce beginning of the loop
-            println!("Beginning exectution loop:");
+            info!("[{}] Beginning exectution loop:", Local::now());
             // calculate the next timeout based on the delay set by user
             let timeout = tokio::time::Instant::now()
                 + tokio::time::Duration::from_secs(self.config.settings.delay);
             // announce start of account sync
-            println!("Starting account sync...");
+            info!("Starting account sync...");
             // if the timeout triggers we get and Err so we announce that the timeout triggered,
             // if not the we get Ok. either way we just announce what happened and move on
-            if let Err(_) = tokio::time::timeout_at(timeout, self.sync_accounts()).await {
-                println!("Account sync was not completed within 5 minutes.");
-            } else {
-                println!("Account sync successful.");
+            match tokio::time::timeout_at(timeout, self.sync_accounts()).await {
+                Ok(Ok(_)) => info!("Account sync successful."),
+                Ok(Err(e)) => warn!("Error during account sync: {}", e),
+                Err(_) => warn!("Account sync was not completed within 5 minutes."),
             }
             // announce the start of next syncs.
-            println!("Starting balance and position sync...");
+            info!("Starting balance and position sync...");
             // run our balance and position syncs together so if there is a delay in either we use
             // that time to start the next request.
             match try_join!(
                 tokio::time::timeout_at(timeout, self.sync_account_balances()),
                 tokio::time::timeout_at(timeout, self.sync_account_positions())
             ) {
-                Ok((Ok(_), Ok(_))) => println!("Balance and position sync successful."),
-                Ok((Err(e), Ok(_))) => println!("Error during balance sync: {}.", e),
-                Ok((Ok(_), Err(e))) => println!("Error during position sync: {}.", e),
-                Ok((Err(e1), Err(e2))) => println!(
+                Ok((Ok(_), Ok(_))) => info!("Balance and position sync successful."),
+                Ok((Err(e), Ok(_))) => warn!("Error during balance sync: {}", e),
+                Ok((Ok(_), Err(e))) => warn!("Error during position sync: {}", e),
+                Ok((Err(e1), Err(e2))) => error!(
                     "Error during balance and position sync.\n\
-                    Balance error: {}. Position error: {}.",
+                    Balance error: {} Position error: {}",
                     e1, e2
                 ),
-                Err(_) => println!("Balance and position sync timeout."),
+                Err(_) => warn!("Balance and position sync timeout."),
             }
             // once we are done all of the syncing we save the info,
             // currently the only way to exit this loop is this function failing
-            println!("Saving DB...");
+            info!("Saving DB...");
             self.save_db()?;
-            println!("DB save successful.");
+            info!("DB save successful.");
             // if we still have time to wait we announce it
             if tokio::time::Instant::now() < timeout {
-                println!("Waiting for next execution..");
+                info!("Waiting for next execution...");
             }
             // finally we delay here until there is something to do
             tokio::time::delay_until(timeout).await;
-            print!("\n");
         }
     }
 
+    // *** Private functions ***
     async fn renew_auth(&mut self) -> Result<()> {
+        info!("Renewing Questrade authentication...");
         // Here we make the request to the questrade server to get new auth info.
-        self.qtrade
+        match self
+            .qtrade
             .authenticate(self.config.auth.refresh_token(), false)
-            .await?;
+            .await
+        {
+            Ok(_) => info!("Authentication renewal successful!"),
+            Err(e) => error!("Authentication renewal failed, with error: {}.", e),
+        }
         // Here we save it to the config object and the local auth file.
         self.config
             .save_new_auth_info(self.qtrade.get_auth_info().unwrap())?;

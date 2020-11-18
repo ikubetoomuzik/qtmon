@@ -3,16 +3,18 @@
 //! Started on: November 8, 2020
 
 use super::include::{
-    clap_app, config_dir, from_str, read_to_string, to_string, Account, AccountNumber,
-    AccountStatus, AccountType, AuthenticationInfo, ClientAccountType, ColoredHelp, Currency,
-    DateTime, Deserialize, Duration, Instant, Local, OpenOptions, Result, Serialize, Write,
+    clap_app, config_dir, default_format, from_str, read_to_string, to_string, Account,
+    AccountNumber, AccountStatus, AccountType, AdaptiveFormat, AuthenticationInfo, Cleanup,
+    ClientAccountType, ColoredHelp, Criterion, Currency, DateTime, Deserialize, Duplicate,
+    Duration, Instant, LevelFilter, Local, LogSpecBuilder, Logger, Naming, OpenOptions,
+    ReconfigurationHandle, Result, Serialize, Write,
 };
 
-#[derive(Debug)]
 /// Struct defining the Configuration that will be used by all other modules.
 pub struct Config {
     pub settings: ConfigFile,
     pub auth: AuthInfo,
+    _logger: ReconfigurationHandle,
 }
 
 impl Config {
@@ -46,6 +48,28 @@ impl Config {
             Some(path) => path.trim(),
             None => &default_config_dir,
         })?;
+        // start with setting up our logger. make a builder first.
+        let (file_log_level, _) = settings.file_log_level.to_usable();
+        let (_, stdout_log_level) = settings.stdout_log_level.to_usable();
+        let mut builder = LogSpecBuilder::new();
+        builder.default(file_log_level);
+        let _logger = Logger::with(builder.build())
+            .log_to_file()
+            .suppress_timestamp()
+            .append()
+            .directory(&settings.log_file_dir)
+            .suffix("log")
+            .duplicate_to_stdout(stdout_log_level)
+            .format_for_files(default_format)
+            .adaptive_format_for_stdout(AdaptiveFormat::Default)
+            .rotate(
+                Criterion::Size(51200),
+                Naming::Numbers,
+                Cleanup::KeepCompressedFiles(5),
+            )
+            .cleanup_in_background_thread(true)
+            .start()?;
+        // now that the logger is up and running.
         // load the saved auth info or use the supplied token if it is there.
         let auth = match refresh_token_arg {
             Some(rt) => AuthInfo::RefreshToken(rt.to_string()),
@@ -53,7 +77,11 @@ impl Config {
         };
 
         // return our generated config.
-        Ok(Config { settings, auth })
+        Ok(Config {
+            settings,
+            auth,
+            _logger,
+        })
     }
     // Save a new set of authentication info.
     pub fn save_new_auth_info(&mut self, auth_info: AuthenticationInfo) -> Result<()> {
@@ -70,7 +98,10 @@ impl Config {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ConfigFile {
     pub db_file_path: String,
-    auth_file_path: String,
+    pub auth_file_path: String,
+    pub log_file_dir: String,
+    pub file_log_level: LogLevel,
+    pub stdout_log_level: LogLevel,
     pub http_port: u16,
     pub accounts_to_sync: Vec<AccountToSync>,
     pub account_balance_currency: Currency,
@@ -81,6 +112,25 @@ impl ConfigFile {
     fn load(file: &str) -> Result<Self> {
         let input = read_to_string(file)?;
         Ok(from_str::<Self>(&input)?)
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum LogLevel {
+    None,
+    Info,
+    Warn,
+    Error,
+}
+
+impl LogLevel {
+    pub fn to_usable(&self) -> (LevelFilter, Duplicate) {
+        match self {
+            Self::None => (LevelFilter::Off, Duplicate::None),
+            Self::Info => (LevelFilter::Info, Duplicate::Info),
+            Self::Warn => (LevelFilter::Warn, Duplicate::Warn),
+            Self::Error => (LevelFilter::Error, Duplicate::Error),
+        }
     }
 }
 

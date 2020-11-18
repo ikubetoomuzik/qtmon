@@ -1,6 +1,9 @@
 ConfigFile(
     auth_file_path: "default/auth.ron",
     db_file_path: "default/db.ron",
+    log_file_dir: "logs",
+    file_log_level: Info,
+    stdout_log_level: Warn,
     http_port: 42069,
     accounts_to_sync: [AccountToSync("Primary", [IsPrimary(true)])],
     account_balance_currency: CAD,

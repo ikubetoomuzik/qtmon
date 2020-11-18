@@ -68,7 +68,7 @@ impl fmt::Display for DBRetrieveError {
         match self {
             Self::RetrieveAccountNoAccountError(s) => write!(
                 f,
-                "Error looking up account with: {}! No such account found by number or name.",
+                "Error looking up account with: {{{}}}. No such account found by number or name.",
                 s
             ),
             Self::RetrieveAccountPositionNoAccountError => write!(
@@ -79,12 +79,14 @@ impl fmt::Display for DBRetrieveError {
                 f,
                 "Could not find position! No positions at all synced on account."
             ),
-            Self::RetrieveAccountPositionNotSyncedError(s) => {
-                write!(f, "Could not find position: {}! Not synced for account.", s)
-            }
+            Self::RetrieveAccountPositionNotSyncedError(s) => write!(
+                f,
+                "Could not find position: {{{}}}. Not synced for account.",
+                s
+            ),
             Self::RetrieveAccountPositionNotSyncedDayError(s, date) => write!(
                 f,
-                "Could not find position! No {} positions synced for account date: {}.",
+                "Could not find position! No {{{}}} positions synced for account date: {}.",
                 s, date
             ),
             Self::RetrieveAccountBalanceNoAccountError => write!(

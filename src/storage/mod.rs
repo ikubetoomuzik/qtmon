@@ -11,9 +11,9 @@ use super::include::Yaml;
 use super::{
     config::Config,
     include::{
-        hash_map, Account, AccountBalance, AccountName, AccountNumber, AccountPosition, Arc,
-        DateTime, Deserialize, Duration, HashMap, Local, NaiveDate, NaiveTime, PathBuf,
-        PathDatabase, Result, Serialize,
+        error, hash_map, warn, Account, AccountBalance, AccountName, AccountNumber,
+        AccountPosition, Arc, DateTime, Deserialize, Duration, HashMap, Local, NaiveDate,
+        NaiveTime, PathBuf, PathDatabase, Result, Serialize,
     },
     myerrors::{DBInsertError, DBRetrieveError},
 };
@@ -202,9 +202,21 @@ impl DBInfo {
         date: NaiveDate,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = self.acct_identifier_to_number(account_identifier.to_string())?;
+        let account_number = match self.acct_identifier_to_number(account_identifier.to_string()) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
         // now that we have a valid account number we use it to pull the balance collection.
-        let todays_bal = self.list_balances_of_date(&account_number, &date)?;
+        let todays_bal = match self.list_balances_of_date(&account_number, &date) {
+            Ok(tb) => tb,
+            Err(e) => {
+                warn!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
         // Then if all goes well we return the most recent bal.
         Ok(todays_bal.get_most_recent().clone())
     }
@@ -216,9 +228,21 @@ impl DBInfo {
         time: NaiveTime,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = self.acct_identifier_to_number(account_identifier.to_string())?;
+        let account_number = match self.acct_identifier_to_number(account_identifier.to_string()) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
         // now that we have a valid account number we use it to pull the balance collection.
-        let todays_bal = self.list_balances_of_date(&account_number, &date)?;
+        let todays_bal = match self.list_balances_of_date(&account_number, &date) {
+            Ok(tb) => tb,
+            Err(e) => {
+                warn!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
         // we start with the first bal and then check from there, but to avoid having to iterate
         // over everything we use a for loop. So we can leave whenever.
         let mut return_bal = todays_bal.get_first_bal();
@@ -239,12 +263,21 @@ impl DBInfo {
     }
     // function to get a list of position symbols.
     pub fn get_position_symbols(&self, acct_ident: String) -> Result<Vec<String>> {
-        let acc_num = self.acct_identifier_to_number(acct_ident)?;
-        match self.account_positions.get(&acc_num) {
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let account_number = match self.acct_identifier_to_number(acct_ident) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve position, with error: {}", e);
+                return Err(e);
+            }
+        };
+        match self.account_positions.get(&account_number) {
             Some(ap) => Ok(ap.keys().map(|k| k.to_string()).collect()),
-            None => Err(Box::new(
-                DBRetrieveError::RetrieveAccountPositionAllNotSyncedError,
-            )),
+            None => {
+                let e = Box::new(DBRetrieveError::RetrieveAccountPositionAllNotSyncedError);
+                warn!("Could not retrieve position, with error: {}", e);
+                Err(e)
+            }
         }
     }
     pub fn get_latest_position(
@@ -253,9 +286,22 @@ impl DBInfo {
         position_symbol: String,
         date: NaiveDate,
     ) -> Result<DBInfoAccountPosition> {
-        let acc_num = self.acct_identifier_to_number(acct_ident)?;
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let acc_num = match self.acct_identifier_to_number(acct_ident) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve position, with error: {}", e);
+                return Err(e);
+            }
+        };
         let day_list_of_positions =
-            self.list_positions_of_date(&acc_num, &position_symbol, &date)?;
+            match self.list_positions_of_date(&acc_num, &position_symbol, &date) {
+                Ok(dlop) => dlop,
+                Err(e) => {
+                    warn!("Could not retrieve position, with error: {}", e);
+                    return Err(e);
+                }
+            };
         Ok(day_list_of_positions.last().unwrap().clone())
     }
     pub fn get_closest_position(
@@ -265,9 +311,22 @@ impl DBInfo {
         date: NaiveDate,
         time: NaiveTime,
     ) -> Result<DBInfoAccountPosition> {
-        let acc_num = self.acct_identifier_to_number(acct_ident)?;
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let acc_num = match self.acct_identifier_to_number(acct_ident) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve position, with error: {}", e);
+                return Err(e);
+            }
+        };
         let day_list_of_positions =
-            self.list_positions_of_date(&acc_num, &position_symbol, &date)?;
+            match self.list_positions_of_date(&acc_num, &position_symbol, &date) {
+                Ok(dlop) => dlop,
+                Err(e) => {
+                    warn!("Could not retrieve position, with error: {}", e);
+                    return Err(e);
+                }
+            };
         let mut result = day_list_of_positions.first().unwrap();
         for pos in day_list_of_positions.iter().skip(1) {
             if duration_abs(time - pos.time_retrieved) <= duration_abs(time - result.time_retrieved)
