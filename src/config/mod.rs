@@ -3,11 +3,11 @@
 //! Started on: November 8, 2020
 
 use super::include::{
-    clap_app, config_dir, default_format, from_str, io, read_to_string, to_string, Account,
+    clap_app, config_dir, default_format, error, from_str, io, read_to_string, to_string, Account,
     AccountNumber, AccountStatus, AccountType, AdaptiveFormat, AuthenticationInfo, Cleanup,
     ClientAccountType, ColoredHelp, Criterion, Currency, DateTime, Deserialize, Duplicate,
-    Duration, Instant, LevelFilter, Local, LogSpecBuilder, Logger, Naming, OpenOptions, PathBuf,
-    ReconfigurationHandle, Result, Serialize, Write,
+    Duration, Instant, Ipv4Addr, LevelFilter, Local, LogSpecBuilder, Logger, Naming, OpenOptions,
+    PathBuf, ReconfigurationHandle, Result, Serialize, Write,
 };
 
 mod default;
@@ -127,7 +127,17 @@ impl Config {
         // load the saved auth info or use the supplied token if it is there.
         let auth = match args.value_of("REFRESH") {
             Some(rt) => AuthInfo::RefreshToken(rt.to_string()),
-            None => AuthInfo::load(&settings.auth_file_path)?,
+            None => match AuthInfo::load(&settings.auth_file_path) {
+                Ok(ai) => ai,
+                Err(e) => {
+                    error!(
+                        "Could not load auth info file @ [{}]. Error: {}",
+                        settings.auth_file_path.to_str().unwrap_or_default(),
+                        e
+                    );
+                    return Err(e);
+                }
+            },
         };
 
         // validate the db file path and add the default path if using it
@@ -159,6 +169,7 @@ pub struct ConfigFile {
     pub log_file_dir: PathBuf,
     pub file_log_level: LogLevel,
     pub stdout_log_level: LogLevel,
+    pub http_bind_addr: Ipv4Addr,
     pub http_port: u16,
     pub accounts_to_sync: Vec<AccountToSync>,
     pub account_balance_currency: Currency,

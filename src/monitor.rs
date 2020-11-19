@@ -24,7 +24,7 @@ impl Monitor {
     /// Constructor function for the main struct of the project.
     /// If this function errors out then something is wrong.
     pub async fn new(mut config: Config) -> Result<Self> {
-        let init_date_time = Local::now().naive_local();
+        let init_date_time = Local::now();
         info!(
             "Initializing application @ [{}] on [{}]...",
             init_date_time.time().format("%H:%M:%S"),
@@ -67,7 +67,11 @@ impl Monitor {
             }
         });
         // Start the http server.
-        let _http = HTTPServer::new(config.settings.http_port, db.clone());
+        let _http = HTTPServer::new(
+            config.settings.http_bind_addr,
+            config.settings.http_port,
+            db.clone(),
+        );
         // Return the created Monitor.
         let mut result = Self {
             config,
@@ -89,7 +93,7 @@ impl Monitor {
     /// with timeouts to make sure that we retry on the delay given by user.
     pub async fn execute_runtime(&mut self) -> Result<()> {
         loop {
-            let loop_date_time = Local::now().naive_local();
+            let loop_date_time = Local::now();
             // announce beginning of the loop
             info!(
                 "Beginning exectution loop @ [{}] on [{}]:",
@@ -117,8 +121,14 @@ impl Monitor {
                 tokio::time::timeout_at(timeout, self.sync_account_positions())
             ) {
                 Ok((Ok(_), Ok(_))) => info!("Balance and position sync successful."),
-                Ok((Err(e), Ok(_))) => warn!("Error during balance sync: {}", e),
-                Ok((Ok(_), Err(e))) => warn!("Error during position sync: {}", e),
+                Ok((Err(e), Ok(_))) => {
+                    warn!("Error during balance sync: {}", e);
+                    info!("Position sync successful.");
+                }
+                Ok((Ok(_), Err(e))) => {
+                    warn!("Error during position sync: {}", e);
+                    info!("Balance sync successful.");
+                }
                 Ok((Err(e1), Err(e2))) => error!(
                     "Error during balance and position sync.\n\
                     Balance error: {} Position error: {}",

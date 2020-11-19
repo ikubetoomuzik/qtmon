@@ -49,7 +49,7 @@ pub struct HTTPServer {
 }
 
 impl HTTPServer {
-    pub fn new(port: u16, db: DBRef) -> Self {
+    pub fn new(addr: Ipv4Addr, port: u16, db: DBRef) -> Self {
         // gen the any filter.
         let any = warp::any().map(|| with_status(format!("Not implemented."), StatusCode::OK));
         // gen the log filters
@@ -286,9 +286,10 @@ impl HTTPServer {
         // combine her up.
         let routes = warp::get().and(raw.or(any)).with(log);
         // print it out babyyy.
-        info!("Starting HTTP server...");
+        info!("Starting HTTP server @ [{}:{}]...", addr, port);
         // here is the actual start of the server..
-        let server = warp::serve(routes).bind(([127, 0, 0, 1], port));
+        // split the addr arg.
+        let server = warp::serve(routes).bind((addr, port));
         HTTPServer {
             handle: tokio::spawn(server),
         }
