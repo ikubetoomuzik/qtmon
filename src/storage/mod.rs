@@ -97,7 +97,17 @@ impl DBInfo {
 
     // *** Insert Functions ***
     pub fn insert_account(&mut self, name: AccountName, account: Account) -> Result<()> {
-        if self.accounts.keys().any(|k| *k == name) {
+        if self
+            .accounts
+            .iter()
+            .any(|(k, v)| *k == name && *v == account)
+        {
+            Ok(())
+        } else if self
+            .accounts
+            .iter()
+            .any(|(k, v)| *k == name && (*v).number != account.number)
+        {
             Err(Box::new(DBInsertError::InsertAccountDuplicateNameError))
         } else if self.accounts.values().any(|v| *v == account) {
             Err(Box::new(DBInsertError::InsertAccountDuplicateInfoError))

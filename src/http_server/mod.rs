@@ -4,9 +4,10 @@
 
 use super::{
     include::{
-        info, json, tokio,
+        error, info, json, tokio, warn,
         warp::{self, Filter},
-        with_status, Deserialize, Json, Local, NaiveDate, NaiveTime, Result, Serialize, StatusCode,
+        with_status, Deserialize, Duration, Ipv4Addr, Json, Local, NaiveDate, NaiveTime, Result,
+        Serialize, SocketAddr, SocketAddrV4, StatusCode,
     },
     storage::{DBInfoAccountBalance, DBInfoAccountPosition, DBRef},
 };
@@ -49,11 +50,32 @@ pub struct HTTPServer {
 
 impl HTTPServer {
     pub fn new(port: u16, db: DBRef) -> Self {
-        // for now the routes are just a simple hello..
-        let any = warp::any().map(|| "Hello there...");
+        // gen the any filter.
+        let any = warp::any().map(|| with_status(format!("Not implemented."), StatusCode::OK));
         // gen the log filters
-        let log = warp::filters::log::log("http_server");
-        // my first try at a basic api..
+        let log = warp::filters::log::custom(|info| {
+            let log_str = format!(
+                "[{} FROM {} {}] Path: {}. Time for response: {}µs.",
+                info.method(),
+                info.remote_addr()
+                    .unwrap_or(SocketAddr::V4(SocketAddrV4::new(
+                        Ipv4Addr::new(u8::MAX, u8::MAX, u8::MAX, u8::MAX),
+                        u16::MAX
+                    ))),
+                info.user_agent().unwrap_or_default(),
+                info.path(),
+                Duration::from_std(info.elapsed())
+                    .unwrap_or(Duration::zero())
+                    .num_microseconds()
+                    .unwrap_or_default(),
+            );
+            match info.status() {
+                StatusCode::OK => info!("{}", log_str),
+                StatusCode::INTERNAL_SERVER_ERROR => error!("{}", log_str),
+                _ => warn!("{}", log_str),
+            }
+        });
+        //  the raw json api
         let raw = warp::path("raw");
         // ** /raw/position paths
         let raw_position = raw.and(warp::path("position"));
@@ -83,51 +105,47 @@ impl HTTPServer {
 
         // clone so we can move it to the new runtime
         let db_rpl = db.clone();
-        let raw_position_list = raw_position_list
-            .map(move |a: String| -> Json {
-                match (*db_rpl)
-                    .db
-                    .read(|db| -> Result<Vec<String>> { Ok(db.get_position_symbols(a)?) })
-                {
-                    Ok(Ok(val)) => json(&val),
-                    Ok(Err(e)) => json(&ErrorReply::new(format!(
-                        "Error getting position list. Error: {}",
-                        e
-                    ))),
-                    Err(e) => json(&ErrorReply::new(format!(
-                        "Error getting position list. Error: {}",
-                        e
-                    ))),
-                }
-            })
-            .with(log);
+        let raw_position_list = raw_position_list.map(move |a: String| -> Json {
+            match (*db_rpl)
+                .db
+                .read(|db| -> Result<Vec<String>> { Ok(db.get_position_symbols(a)?) })
+            {
+                Ok(Ok(val)) => json(&val),
+                Ok(Err(e)) => json(&ErrorReply::new(format!(
+                    "Error getting position list. Error: {}",
+                    e
+                ))),
+                Err(e) => json(&ErrorReply::new(format!(
+                    "Error getting position list. Error: {}",
+                    e
+                ))),
+            }
+        });
 
         // clone so we can move it to the new runtime
         let db_rplatest = db.clone();
-        let raw_position_latest = raw_position_latest
-            .map(move |a: String, b: String| -> Json {
-                match (*db_rplatest)
-                    .db
-                    .read(|db| -> Result<DBInfoAccountPosition> {
-                        Ok(db.get_latest_position(a, b, Local::today().naive_local())?)
-                    }) {
-                    Ok(Ok(val)) => json(&val),
-                    Ok(Err(e)) => json(&ErrorReply::new(format!(
-                        "Error getting position list. Error: {}",
-                        e
-                    ))),
-                    Err(e) => json(&ErrorReply::new(format!(
-                        "Error getting position list. Error: {}",
-                        e
-                    ))),
-                }
-            })
-            .with(log);
+        let raw_position_latest = raw_position_latest.map(move |a: String, b: String| -> Json {
+            match (*db_rplatest)
+                .db
+                .read(|db| -> Result<DBInfoAccountPosition> {
+                    Ok(db.get_latest_position(a, b, Local::today().naive_local())?)
+                }) {
+                Ok(Ok(val)) => json(&val),
+                Ok(Err(e)) => json(&ErrorReply::new(format!(
+                    "Error getting position list. Error: {}",
+                    e
+                ))),
+                Err(e) => json(&ErrorReply::new(format!(
+                    "Error getting position list. Error: {}",
+                    e
+                ))),
+            }
+        });
 
         // clone so we can move it to the new runtime
         let db_rpdlatest = db.clone();
-        let raw_position_date_latest = raw_position_date_latest
-            .map(move |a: String, b: String, c: String| -> Json {
+        let raw_position_date_latest =
+            raw_position_date_latest.map(move |a: String, b: String, c: String| -> Json {
                 let date = match parse_date(c) {
                     Ok(d) => d,
                     Err(e) => return e,
@@ -147,13 +165,12 @@ impl HTTPServer {
                         e
                     ))),
                 }
-            })
-            .with(log);
+            });
 
         // clone so we can move it to the new runtime
         let db_rpdtime = db.clone();
-        let raw_position_date_time = raw_position_date_time
-            .map(move |a: String, b: String, c: String, d: String| -> Json {
+        let raw_position_date_time =
+            raw_position_date_time.map(move |a: String, b: String, c: String, d: String| -> Json {
                 let date = match parse_date(c) {
                     Ok(d) => d,
                     Err(e) => return e,
@@ -177,14 +194,13 @@ impl HTTPServer {
                         e
                     ))),
                 }
-            })
-            .with(log);
+            });
 
         // clone so we can move it to the new runtime
         let db_rbdt = db.clone();
         // and now we format our actual response.
-        let raw_balance_date_time = raw_balance_date_time
-            .map(move |a: String, b: String, c: String| -> Json {
+        let raw_balance_date_time =
+            raw_balance_date_time.map(move |a: String, b: String, c: String| -> Json {
                 let date = match parse_date(b) {
                     Ok(d) => d,
                     Err(e) => return e,
@@ -206,14 +222,13 @@ impl HTTPServer {
                         e
                     ))),
                 }
-            })
-            .with(log);
+            });
 
         // clone so we can move it to the new runtime
         let db_rbld = db.clone();
         // and now we format our actual response.
-        let raw_balance_latest_date = raw_balance_latest_date
-            .map(move |a: String, b: String| -> Json {
+        let raw_balance_latest_date =
+            raw_balance_latest_date.map(move |a: String, b: String| -> Json {
                 let date = match parse_date(b) {
                     Ok(d) => d,
                     Err(e) => return e,
@@ -231,14 +246,13 @@ impl HTTPServer {
                         e
                     ))),
                 }
-            })
-            .with(log);
+            });
 
         // clone so we can move it to the new runtime
         let db_rbl = db.clone();
         // and now we format our actual response.
-        let raw_balance_latest = raw_balance_latest
-            .map(move |a: String| -> warp::reply::WithStatus<Json> {
+        let raw_balance_latest =
+            raw_balance_latest.map(move |a: String| -> warp::reply::WithStatus<Json> {
                 match (*db_rbl).db.read(|db| -> Result<DBInfoAccountBalance> {
                     Ok(db.get_latest_balance(&a, Local::today().naive_local())?)
                 }) {
@@ -258,8 +272,7 @@ impl HTTPServer {
                         StatusCode::NOT_FOUND,
                     ),
                 }
-            })
-            .with(log);
+            });
 
         // combine up the baic methods.
         let raw = raw_balance_latest
@@ -271,7 +284,7 @@ impl HTTPServer {
             .or(raw_position_date_time);
 
         // combine her up.
-        let routes = warp::get().and(raw.or(any));
+        let routes = warp::get().and(raw.or(any)).with(log);
         // print it out babyyy.
         info!("Starting HTTP server...");
         // here is the actual start of the server..

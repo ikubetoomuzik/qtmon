@@ -49,7 +49,7 @@ impl Config {
         (author: "Curtis Jones <mail@curtisjones.ca>")
         (about: "program to monitor questrade account using official api")
         (@arg CONFIG:  -c --config        +takes_value "Sets a custom config file.")
-        (@arg REFRESH: -r --refreshtoken  +takes_value "If running for the first time this can provide the starting refresh token."))
+        (@arg REFRESH: -r --refreshtoken  +takes_value "Override the inital loading of authentication with a RefreshToken. Recommended for first run."))
         .setting(ColoredHelp)
         .get_matches();
         // check for X_DEFAULT_DIR.
@@ -192,6 +192,23 @@ impl LogLevel {
 }
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct AccountToSync(String, Vec<AccountSelector>);
+
+impl AccountToSync {
+    pub fn check_account_match(&self, acct: &Account) -> bool {
+        self.1
+            .iter()
+            .all(|selector| selector.check_account_match(acct))
+    }
+    pub fn name(&self) -> String {
+        self.0.clone()
+    }
+    pub fn name_is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub enum AccountSelector {
     Number(AccountNumber),
     IsPrimary(bool),
@@ -211,23 +228,6 @@ impl AccountSelector {
             Self::ClientAccountType(cli_acc_type) => *cli_acc_type == acct.client_account_type,
             Self::Status(acc_stat) => *acc_stat == acct.status,
         }
-    }
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct AccountToSync(String, Vec<AccountSelector>);
-
-impl AccountToSync {
-    pub fn check_account_match(&self, acct: &Account) -> bool {
-        self.1
-            .iter()
-            .all(|selector| selector.check_account_match(acct))
-    }
-    pub fn name(&self) -> String {
-        self.0.clone()
-    }
-    pub fn name_is_empty(&self) -> bool {
-        self.0.is_empty()
     }
 }
 
