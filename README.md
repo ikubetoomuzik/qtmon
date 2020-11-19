@@ -25,7 +25,7 @@ including either feature.
 The default config location is $XDG_CONFIG_DIR/qtmon/config.ron or 
 $HOME/.config/qtmon/config.ron and you can override it with the *-c* option.
 By default the program will generate a default config file the first time it is run.
-An overview of the different config options can be found [here](#Configuration Options Overview).
+An overview of the different config options can be found [here](#Configuration\ Options\ Overview).
 To connect the first time you will need to provide a **Questrade API Refresh Token**
 as the *-r* arguement to the program.
 Instructions on enabling the API for your account and generating a new token can 
@@ -35,7 +35,6 @@ be found [here](https://www.questrade.com/api/documentation/getting-started).
 Once you've run the program once with your initial token it should be able to
 manage authentication from there. All you need to do is query your localhost at the 
 port you selected in your config to get the up-to-date details on your account.
-An overview of the API and how to pull information can be found [here](#REST API Overview).
 An overview of the API and how to pull information can be found [here](./src/http_server/README.md).
 
 
