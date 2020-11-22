@@ -74,6 +74,10 @@ impl DBInfoAccountBalanceDay {
         }
     }
 
+    pub fn get_start_of_day(&self) -> &DBInfoAccountBalance {
+        &self.start_of_day_bal
+    }
+
     pub fn get_first_bal(&self) -> &DBInfoAccountBalance {
         match self.over_day_balances.first() {
             Some(b) => b,

@@ -1,3 +1,4 @@
+#![feature(drain_filter)]
 // #![allow(dead_code, unused_variables, unused_imports)]
 //! Multithreaded application to monitor a questrade account.
 //! By: Curtis Jones <mail@curtisjones.ca>

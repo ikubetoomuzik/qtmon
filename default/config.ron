@@ -18,6 +18,7 @@ ConfigFile(
 	file_log_level: Info,
 	stdout_log_level: Info,
 	// Local port for the REST Api server to listen on.
+        http_bind_addr: "127.0.0.1",
 	http_port: 49494,
 	// List of AccountToSync objects that define which accounts you want to sync.
 	// They are of the form AccountToSync($StringRepresentingName, $ListofAccountSelectorObjects).

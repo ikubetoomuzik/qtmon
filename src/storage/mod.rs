@@ -206,13 +206,39 @@ impl DBInfo {
     }
 
     // ** get balance info **
+
+    pub fn get_start_of_day_balance(
+        &self,
+        account_identifier: &str,
+        date: NaiveDate,
+    ) -> Result<DBInfoAccountBalance> {
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let account_number = match self.acct_identifier_to_number(account_identifier) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
+        // now that we have a valid account number we use it to pull the balance collection.
+        let todays_bal = match self.list_balances_of_date(&account_number, &date) {
+            Ok(tb) => tb,
+            Err(e) => {
+                warn!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
+        // Then if all goes well we return the most recent bal.
+        Ok(todays_bal.get_start_of_day().clone())
+    }
+
     pub fn get_latest_balance(
         &self,
         account_identifier: &str,
         date: NaiveDate,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = match self.acct_identifier_to_number(account_identifier.to_string()) {
+        let account_number = match self.acct_identifier_to_number(account_identifier) {
             Ok(an) => an,
             Err(e) => {
                 error!("Could not retrieve balance, with error: {}", e);
@@ -230,6 +256,7 @@ impl DBInfo {
         // Then if all goes well we return the most recent bal.
         Ok(todays_bal.get_most_recent().clone())
     }
+
     // function to find the balance closest to a date & time.
     pub fn get_closest_balance(
         &self,
@@ -238,7 +265,7 @@ impl DBInfo {
         time: NaiveTime,
     ) -> Result<DBInfoAccountBalance> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let account_number = match self.acct_identifier_to_number(account_identifier.to_string()) {
+        let account_number = match self.acct_identifier_to_number(account_identifier) {
             Ok(an) => an,
             Err(e) => {
                 error!("Could not retrieve balance, with error: {}", e);
@@ -272,7 +299,7 @@ impl DBInfo {
         Ok(return_bal.clone())
     }
     // function to get a list of position symbols.
-    pub fn get_position_symbols(&self, acct_ident: String) -> Result<Vec<String>> {
+    pub fn get_position_symbols(&self, acct_ident: &str) -> Result<Vec<String>> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
         let account_number = match self.acct_identifier_to_number(acct_ident) {
             Ok(an) => an,
@@ -292,8 +319,8 @@ impl DBInfo {
     }
     pub fn get_latest_position(
         &self,
-        acct_ident: String,
-        position_symbol: String,
+        acct_ident: &str,
+        position_symbol: &str,
         date: NaiveDate,
     ) -> Result<DBInfoAccountPosition> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
@@ -305,7 +332,7 @@ impl DBInfo {
             }
         };
         let day_list_of_positions =
-            match self.list_positions_of_date(&acc_num, &position_symbol, &date) {
+            match self.list_positions_of_date(&acc_num, position_symbol, &date) {
                 Ok(dlop) => dlop,
                 Err(e) => {
                     warn!("Could not retrieve position, with error: {}", e);
@@ -316,13 +343,13 @@ impl DBInfo {
     }
     pub fn get_closest_position(
         &self,
-        acct_ident: String,
-        position_symbol: String,
+        acct_ident: &str,
+        position_symbol: &str,
         date: NaiveDate,
         time: NaiveTime,
     ) -> Result<DBInfoAccountPosition> {
         // first we verify that we have a valid account identifier and reduce it to just a number.
-        let acc_num = match self.acct_identifier_to_number(acct_ident) {
+        let acc_num = match self.acct_identifier_to_number(&acct_ident) {
             Ok(an) => an,
             Err(e) => {
                 error!("Could not retrieve position, with error: {}", e);
@@ -330,7 +357,7 @@ impl DBInfo {
             }
         };
         let day_list_of_positions =
-            match self.list_positions_of_date(&acc_num, &position_symbol, &date) {
+            match self.list_positions_of_date(&acc_num, position_symbol, &date) {
                 Ok(dlop) => dlop,
                 Err(e) => {
                     warn!("Could not retrieve position, with error: {}", e);
@@ -350,15 +377,15 @@ impl DBInfo {
         Ok(result.clone())
     }
     // ** Helper methods. **
-    fn acct_identifier_to_number(&self, acct_ident: String) -> Result<String> {
-        match self.accounts.get(&acct_ident) {
+    fn acct_identifier_to_number(&self, acct_ident: &str) -> Result<String> {
+        match self.accounts.get(acct_ident) {
             Some(acct) => Ok(acct.number.clone()),
             None => {
                 if self.iter_accounts().any(|ac| ac.number == acct_ident) {
-                    Ok(acct_ident)
+                    Ok(acct_ident.to_string())
                 } else {
                     Err(Box::new(DBRetrieveError::RetrieveAccountNoAccountError(
-                        acct_ident,
+                        acct_ident.to_string(),
                     )))
                 }
             }
