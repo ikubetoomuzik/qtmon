@@ -26,7 +26,6 @@ be found [here](https://www.questrade.com/api/documentation/getting-started).
 Once you've run the program once with your initial token it should be able to
 manage authentication from there. All you need to do is query your localhost at the 
 port you selected in your config to get the up-to-date details on your account.
-An overview of the API and how to pull information can be found [here](./src/http_server/README.md).
 
 ## Config
 Instructions on configuration of the application can be found [here](./src/config/README.md).
