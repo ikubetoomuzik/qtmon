@@ -16,12 +16,10 @@ Version: **0.1.0**
 Only one path is available with this part of the api.
 
 
-**/statusbar/$***accountIdentifier***/$***inputString***
+__/statusbar/__*$accountIdentifier*__/__*$inputString*
 
 
-Where the api will respond with a string equal to the *inputString* with variables substituted.
-To indicate you want spaces in the output a *underscore* char can be used. 
-All *underscores* will be replaced with spaces.
+Where the api will respond with a string equal to the *$inputString* with variables substituted.
 
 ### Variables
 
@@ -29,6 +27,9 @@ All *underscores* will be replaced with spaces.
 |-------------------------------------------------|----------------------------------------------------------------------|
 | **%slash**                                      | Just replaces with the *"/"* character.                              |
 | **%dollar**                                     | Just replaces with the *"$"* character.                              |
+| **underscore**                                  | Just replaces with the *"space"* character.                          |
+| **$accountIdentifier**                          | Account name or number.                                              |
+| **$inputString**                                | String to replace variables in and return..                          |
 | **%sod.cash**                                   | Cash balance for the account @ start of day.                         |
 | **%sod.marketValue**                            | Market value for the account @ start of day.                         |
 | **%sod.totalEquity**                            | Cash + bal @ start of day.                                           |
