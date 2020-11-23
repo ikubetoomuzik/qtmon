@@ -7,7 +7,7 @@ The project has been uploaded to crates.io and can be downloaded with:
 cargo install qtmon
 ```
 ## Config
-Instructions on configuration of the application can be found [here](./src/config/README.md).
+Instructions on configuration of the application can be found [here](./src/config).
 
 ## Usage
 The program uses [Rusty-Object-Notation](https://github.com/ron-rs/ron) or RON for it's default data storage.
