@@ -2,7 +2,7 @@
 name = "qtmon"
 license = "MIT"
 edition = "2018"
-version = "0.1.0"
+version = "0.1.1"
 readme = "README.md"
 keywords = ["api", "finance", "stock", "questrade"]
 authors = ["Curtis Jones <ikubetoomuzik@gmail.com>"]

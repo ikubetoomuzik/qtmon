@@ -55,13 +55,13 @@ pub struct DB {
 #[cfg(feature = "yaml")]
 /// To enable this you would have to disable default and enable 'yaml'.
 pub struct DB {
-    db: PathDatabase<DBInfo, Yaml>,
+    pub db: PathDatabase<DBInfo, Yaml>,
 }
 #[derive(Debug)]
 #[cfg(feature = "bincode")]
 /// To enable this you would have to disable default and enable 'bincode'.
 pub struct DB {
-    db: PathDatabase<DBInfo, Bincode>,
+    pub db: PathDatabase<DBInfo, Bincode>,
 }
 
 impl DB {
