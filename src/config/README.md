@@ -1,4 +1,4 @@
-Configuration Options Overview
+# Configuration Options Overview
 
 Since RON is our default encoding Config examples will be written in rust:
 ```rust

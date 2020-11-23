@@ -1,8 +1,7 @@
-# qtmon
-Version: **0.1.0**
-
+# HTTP Server REST API Documentation
 
 ## Quick Ref
+
 * [Statusbar](#Statusbar)
 * [Statusbar/Variables](#Variables)
 * [Raw](#Raw)
@@ -10,26 +9,24 @@ Version: **0.1.0**
 * [Raw/Balance](#Balance)
 * [Raw/Position](#Position)
 
-
 ## Statusbar
 
 Only one path is available with this part of the api.
 
+```
+/statusbar/$identifier/$inputString
+```
 
-__/statusbar/__*$accountIdentifier*__/__*$inputString*
-
-
-Where the api will respond with a string equal to the *$inputString* with variables substituted.
+Where the api will respond with a string equal to the **$inputString** with variables substituted 
+and the **$identifier** is read as the account name or number.
 
 ### Variables
 
 | Identifier                                      | Description                                                          |
 |-------------------------------------------------|----------------------------------------------------------------------|
+| **underscore**                                  | Just replaces with the *"space"* character.                          |
 | **%slash**                                      | Just replaces with the *"/"* character.                              |
 | **%dollar**                                     | Just replaces with the *"$"* character.                              |
-| **underscore**                                  | Just replaces with the *"space"* character.                          |
-| **$accountIdentifier**                          | Account name or number.                                              |
-| **$inputString**                                | String to replace variables in and return..                          |
 | **%sod.cash**                                   | Cash balance for the account @ start of day.                         |
 | **%sod.marketValue**                            | Market value for the account @ start of day.                         |
 | **%sod.totalEquity**                            | Cash + bal @ start of day.                                           |
@@ -56,9 +53,7 @@ Where the api will respond with a string equal to the *$inputString* with variab
 
 ## Raw 
 
-
 Returns JSON representing the requested info.
-
 
 | Variable        | Description                                |
 |-----------------|--------------------------------------------|

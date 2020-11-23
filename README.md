@@ -6,6 +6,8 @@ The project has been uploaded to crates.io and can be downloaded with:
 ```sh
 cargo install qtmon
 ```
+## Config
+Instructions on configuration of the application can be found [here](./src/config/README.md).
 
 ## Usage
 The program uses [Rusty-Object-Notation](https://github.com/ron-rs/ron) or RON for it's default data storage.
@@ -16,7 +18,6 @@ including either feature.
 The default config location is *$XDGCONFIGDIR/qtmon/config.ron* or 
 *$HOME/.config/qtmon/config.ron* and you can override it with the *-c* option.
 By default the program will generate a default config file the first time it is run.
-An overview of the different config options can be found [here](src/config/README.md).
 To connect the first time you will need to provide a **Questrade API Refresh Token**
 as the *-r* arguement to the program.
 Instructions on enabling the API for your account and generating a new token can 
@@ -27,22 +28,20 @@ Once you've run the program once with your initial token it should be able to
 manage authentication from there. All you need to do is query your localhost at the 
 port you selected in your config to get the up-to-date details on your account.
 
-## Config
-Instructions on configuration of the application can be found [here](./src/config/README.md).
-
 ## API
 Documentation for the REST API can be found [here](./src/http_server/README.md).
 
 ## TODO
-* [ ] Fill out REST API README more completely.
 * [ ] Go back and comment throughout the project, most specifically in the *storage* module.
+* [ ] Add examples to the REST Api README.
 
 ## DONE
 * [x] Add statusbar api.
-* [x] REST API to actually get info.
+* [x] REST Api to actually get info.
 * [x] Add license. Probably just MIT.
 * [x] Fill out config README more completely.
 * [x] Fill out general README more completely.
+* [x] Fill out REST Api README more completely.
 * [x] Fix the way that *Config* loading parses non-root paths provided.
 * [x] Add a string encoded default config to produce on first run if needed.
 * [x] Split *storage* module into seperate modules, file is over 400 lines of code..
