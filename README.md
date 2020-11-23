@@ -29,7 +29,7 @@ manage authentication from there. All you need to do is query your localhost at 
 port you selected in your config to get the up-to-date details on your account.
 
 ## API
-Documentation for the REST API can be found [here](./src/http_server/README.md).
+Documentation for the REST API can be found [here](./src/http_server).
 
 ## TODO
 * [ ] Go back and comment throughout the project, most specifically in the *storage* module.
