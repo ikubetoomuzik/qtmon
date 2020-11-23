@@ -3,10 +3,16 @@ Version: **0.1.0**
 
 ## Installation
 The project has been uploaded to crates.io and can be downloaded with:
+
 ```sh
+# Default encoding (RON).
 cargo install qtmon
+# Yaml encoding.
+cargo install qtmon --no-default-features --features Yaml
+# Bincode encoding.
+cargo install qtmon --no-default-features --features Yaml
 ```
-## Config
+## Configuration
 Instructions on configuration of the application can be found [here](./src/config).
 
 ## Usage
