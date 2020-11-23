@@ -1,5 +1,5 @@
 # qtmon
-Version: **0.1.0**
+Version: **0.1.1**
 
 ## Installation
 The project has been uploaded to crates.io and can be downloaded with:
