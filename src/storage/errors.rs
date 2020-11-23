@@ -2,7 +2,7 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 12, 2020
 
-use super::include::{error, fmt, NaiveDate};
+use super::super::include::{error, fmt, NaiveDate};
 
 #[derive(Debug)]
 // Enum representing errors that are possible during inserts into my database.
@@ -51,6 +51,7 @@ impl fmt::Display for DBInsertError {
 #[derive(Debug)]
 // Enum representing errors that are possible during inserts into my database.
 pub enum DBRetrieveError {
+    RetrieveAccountsNotSyncedError,
     RetrieveAccountNoAccountError(String),
     RetrieveAccountPositionNotSyncedError(String),
     RetrieveAccountPositionAllNotSyncedError,
@@ -66,6 +67,9 @@ impl error::Error for DBRetrieveError {}
 impl fmt::Display for DBRetrieveError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::RetrieveAccountsNotSyncedError => {
+                write!(f, "Error getting account list, no accounts synced.",)
+            }
             Self::RetrieveAccountNoAccountError(s) => write!(
                 f,
                 "Error looking up account with: {{{}}}. No such account found by number or name.",

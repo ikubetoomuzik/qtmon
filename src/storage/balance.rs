@@ -2,9 +2,11 @@
 //! By: Curtis Jones <mail@curtisjones.ca>
 //! Started on: November 16, 2020
 
-use super::super::{
-    include::{AccountBalance, Currency, Deserialize, NaiveDate, NaiveTime, Result, Serialize},
-    myerrors::DBInsertError,
+use super::{
+    super::include::{
+        AccountBalance, Currency, Deserialize, NaiveDate, NaiveTime, Result, Serialize,
+    },
+    errors::DBInsertError,
 };
 
 /// pub type def for the vector of saved day info

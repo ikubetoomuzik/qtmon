@@ -15,15 +15,16 @@ use super::{
         AccountPosition, Arc, DateTime, Deserialize, Duration, HashMap, Local, NaiveDate,
         NaiveTime, PathBuf, PathDatabase, Result, Serialize,
     },
-    myerrors::{DBInsertError, DBRetrieveError},
 };
 
 /// Sub modules
 mod balance;
+mod errors;
 mod position;
 
 /// Re-export sub-modules so we can read from them in other modules.
 pub use balance::*;
+pub use errors::*;
 pub use position::*;
 
 /// Helper functions
@@ -203,6 +204,33 @@ impl DBInfo {
     // *** Reading functions. ***
     pub fn iter_accounts(&self) -> hash_map::Values<'_, String, Account> {
         self.accounts.values()
+    }
+
+    // ** get account info **
+    pub fn get_account_list(&self) -> Result<Vec<String>> {
+        if self.accounts.is_empty() {
+            Err(Box::new(DBRetrieveError::RetrieveAccountsNotSyncedError))
+        } else {
+            Ok(self.accounts.keys().map(|k| k.clone()).collect())
+        }
+    }
+
+    // ** get account info **
+    pub fn get_account_info(&self, account_identifier: &str) -> Result<Account> {
+        // first we verify that we have a valid account identifier and reduce it to just a number.
+        let account_number = match self.acct_identifier_to_number(account_identifier) {
+            Ok(an) => an,
+            Err(e) => {
+                error!("Could not retrieve balance, with error: {}", e);
+                return Err(e);
+            }
+        };
+        Ok(self
+            .accounts
+            .values()
+            .find(|v| v.number == account_number)
+            .unwrap()
+            .clone())
     }
 
     // ** get balance info **

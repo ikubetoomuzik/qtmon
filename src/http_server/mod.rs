@@ -6,8 +6,8 @@ use super::{
     include::{
         error, info, json, tokio, warn,
         warp::{self, Filter},
-        with_status, Deserialize, Duration, Ipv4Addr, Json, Local, Result, Serialize, SocketAddr,
-        SocketAddrV4, StatusCode,
+        with_status, Account, Deserialize, Duration, Ipv4Addr, Json, Local, Result, Serialize,
+        SocketAddr, SocketAddrV4, StatusCode,
     },
     storage::{DBInfoAccountBalance, DBInfoAccountPosition, DBRef},
 };
@@ -103,6 +103,9 @@ impl HTTPServer {
         //  the raw json api
         let raw = warp::path("raw");
         // ** /raw/position paths
+        let raw_account = raw.and(warp::path("account"));
+        let raw_account_list = raw_account.and(warp::path("list").and(warp::path::end()));
+        let raw_account_info = raw_account.and(warp::path!(String).and(warp::path::end()));
         let raw_position = raw.and(warp::path("position"));
         let raw_position_list = raw_position
             .and(warp::path!(String / "list"))
@@ -133,6 +136,46 @@ impl HTTPServer {
         let raw_balance_date_time = raw_balance
             .and(warp::path!(String / String / String))
             .and(warp::path::end());
+
+        // account name list api.
+        // clone so we can move it to the new runtime
+        let db_al = db.clone();
+        let raw_account_list = raw_account_list.map(move || -> Json {
+            match (*db_al)
+                .db
+                .read(|db| -> Result<Vec<String>> { Ok(db.get_account_list()?) })
+            {
+                Ok(Ok(val)) => json(&val),
+                Ok(Err(e)) => json(&ErrorReply::new(format!(
+                    "Error getting account list. Error: {}",
+                    e
+                ))),
+                Err(e) => json(&ErrorReply::new(format!(
+                    "Error getting account list. Error: {}",
+                    e
+                ))),
+            }
+        });
+
+        // account name list api.
+        // clone so we can move it to the new runtime
+        let db_ai = db.clone();
+        let raw_account_info = raw_account_info.map(move |a: String| -> Json {
+            match (*db_ai)
+                .db
+                .read(|db| -> Result<Account> { Ok(db.get_account_info(&a)?) })
+            {
+                Ok(Ok(val)) => json(&val),
+                Ok(Err(e)) => json(&ErrorReply::new(format!(
+                    "Error getting account info. Error: {}",
+                    e
+                ))),
+                Err(e) => json(&ErrorReply::new(format!(
+                    "Error getting account info. Error: {}",
+                    e
+                ))),
+            }
+        });
 
         // clone so we can move it to the new runtime
         let db_rpl = db.clone();
@@ -355,7 +398,9 @@ impl HTTPServer {
             });
 
         // combine up the baic methods.
-        let raw = raw_balance_sod
+        let raw = raw_account_list
+            .or(raw_account_info)
+            .or(raw_balance_sod)
             .or(raw_balance_sod_date)
             .or(raw_balance_latest)
             .or(raw_balance_latest_date)

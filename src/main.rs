@@ -9,7 +9,6 @@ mod config;
 mod http_server;
 mod include;
 mod monitor;
-mod myerrors;
 mod storage;
 
 // Local use statements.
