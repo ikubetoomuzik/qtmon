@@ -2,6 +2,15 @@
 Version: **0.1.0**
 
 
+## Quick Ref
+* [Statusbar](#Statusbar)
+* [Statusbar/Variables](#Variables)
+* [Raw](#Raw)
+* [Raw/Account](#Account)
+* [Raw/Balance](#Balance)
+* [Raw/Position](#Position)
+
+
 ## Statusbar
 
 Only one path is available with this part of the api.
@@ -14,7 +23,7 @@ Where the api will respond with a string equal to the *inputString* with variabl
 To indicate you want spaces in the output a *underscore* char can be used. 
 All *underscores* will be replaced with spaces.
 
-### Variables available to use:
+### Variables
 
 | Identifier                                      | Description                                                          |
 |-------------------------------------------------|----------------------------------------------------------------------|
@@ -46,17 +55,42 @@ All *underscores* will be replaced with spaces.
 
 ## Raw 
 
-### Quick Ref
 
-* [Accounts](#Accounts)
+Returns JSON representing the requested info.
 
-### Accounts
 
-| Path                        | Description                                                                           |
-|-----------------------------|---------------------------------------------------------------------------------------|
-| `/raw/account/list`         | Json array of account names.                                                          |
-| `/raw/account/$indentifier` | Json object of account info. Where **$identifier** is the account *name* or *number*. |
+| Variable        | Description                                |
+|-----------------|--------------------------------------------|
+| **$position**   | The symbol for a position held on account. |
+| **$identifier** | An account *name* or *number*.             |
+| **$date**       | A date of the format: *YYYY-MM-DD*.        |
+| **$time**       | A time of the format: *HH:MM*.             |
 
+### Account
+
+| Path                        | Description                  |
+|-----------------------------|------------------------------|
+| `/raw/account/list`         | Json array of account names. |
+| `/raw/account/$indentifier` | Json object of account info. |
+
+### Balance
+
+| Path                                    | Description                                                    |
+|-----------------------------------------|----------------------------------------------------------------|
+| `/raw/balance/$identifier/sod`          | The balance at the start of day today.                         |
+| `/raw/balance/$identifier/latest`       | The most recently synced balance.                              |
+| `/raw/balance/$identifier/$date/sod`    | The balance at the start of day for **$date**.                 |
+| `/raw/balance/$identifier/$date/latest` | The most recently synced balance for **$date**.                |
+| `/raw/balance/$identifier/$date/$time`  | The balance closest to **$date** & **$time**.                  |
+
+### Position
+
+| Path                                               | Description                                                              |
+|----------------------------------------------------|--------------------------------------------------------------------------|
+| `/raw/position/$identifier/list`                   | List of position symbols (**$position**).                                |
+| `/raw/position/$identifier/$position/latest`       | The latest synced info for the **$position**.                            |
+| `/raw/position/$identifier/$position/$date/latest` | The latest synced info for the **$position** on **$date**.               |
+| `/raw/position/$identifier/$position/$date/$time`  | The closest synced info for the **$position** on **$date** at **$time**. |
 
 ## Author
 

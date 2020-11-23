@@ -12,6 +12,7 @@ The program uses [Rusty-Object-Notation](https://github.com/ron-rs/ron) or RON f
 You may optionally enable a Yaml or Bincode encoding by disabling default and
 including either feature.
 
+
 The default config location is *$XDGCONFIGDIR/qtmon/config.ron* or 
 *$HOME/.config/qtmon/config.ron* and you can override it with the *-c* option.
 By default the program will generate a default config file the first time it is run.
@@ -26,6 +27,12 @@ Once you've run the program once with your initial token it should be able to
 manage authentication from there. All you need to do is query your localhost at the 
 port you selected in your config to get the up-to-date details on your account.
 An overview of the API and how to pull information can be found [here](./src/http_server/README.md).
+
+## Config
+Instructions on configuration of the application can be found [here](./src/config/README.md).
+
+## API
+Documentation for the REST API can be found [here](./src/http_server/README.md).
 
 ## TODO
 * [ ] Fill out REST API README more completely.
