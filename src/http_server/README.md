@@ -27,11 +27,11 @@ All *underscores* will be replaced with spaces.
 | **%bal.cash**                                   | Most recent known cash bal for acct.                                 |
 | **%bal.cashPNL**                                | Change in cash from sod as a % of sod                                |
 | **%bal.marketValue**                            | Most recent known market value for acct.                             |
-| **%bal.marketValuePNL**                         | Change in market value from sod as a % of sod                        |
-| **%bal.totalEquity**                            | Most recent cash + bal                                               |
-| **%bal.totalEquityPNL**                         | Change in total equity from sod as a % of sod                        |
-| **%bal.maitenanceExcess**                       | Most recent value, usually same as cash bal                          |
-| **%bal.maitenanceExcessPNL**                    | Change in maitenance excess from sod as a % of sod                   |
+| **%bal.marketValuePNL**                         | Change in market value from sod as a % of sod.                       |
+| **%bal.totalEquity**                            | Most recent cash + bal.                                              |
+| **%bal.totalEquityPNL**                         | Change in total equity from sod as a % of sod.                       |
+| **%bal.maitenanceExcess**                       | Most recent value, usually same as cash bal.                         |
+| **%bal.maitenanceExcessPNL**                    | Change in maitenance excess from sod as a % of sod.                  |
 | **%***[Position Symbol]***.openQuantity**       | Total quantity of position currently owned.                          |
 | **%***[Position Symbol]***.closedQuantity**     | Total quantity of position sold.                                     |
 | **%***[Position Symbol]***.currentMarketValue** | Market value at most recent sync.                                    |
@@ -46,13 +46,16 @@ All *underscores* will be replaced with spaces.
 
 ## Raw 
 
+### Quick Ref
+
+* [Accounts](#Accounts)
+
 ### Accounts
 
-| Path                        | Description                                              |
-|-----------------------------|----------------------------------------------------------|
-| `/raw/account/list`         | Json array of account names.                             |
-| `/raw/account/$indentifier` | Json object of account info.                             |
-|                             | Where **$identifier** is the account *name* or *number*. |
+| Path                        | Description                                                                           |
+|-----------------------------|---------------------------------------------------------------------------------------|
+| `/raw/account/list`         | Json array of account names.                                                          |
+| `/raw/account/$indentifier` | Json object of account info. Where **$identifier** is the account *name* or *number*. |
 
 
 ## Author
