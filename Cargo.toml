@@ -11,6 +11,7 @@ repository = "https://github.com/ikubetoomuzik/qtmon.git"
 description = "An async monitor for the Questrade api, with its own small API server for your own projects."
 exclude = [
   "files/*",
+  "default/*",
 ]
 
 [features]
