@@ -22,7 +22,7 @@ pub static DEFAULT_CONFIG: &str = "ConfigFile(\n\
     \tfile_log_level: Info,\n\
     \tstdout_log_level: Info,\n\
     \t// Local port and address for the REST Api server to listen on.\n\
-    \thttp_bind_addr: 127.0.0.1,\n\
+    \thttp_bind_addr: \"127.0.0.1\",\n\
     \thttp_port: 49494,\n\
     \t// List of AccountToSync objects that define which accounts you want to sync.\n\
     \t// They are of the form AccountToSync($StringRepresentingName, $ListofAccountSelectorObjects).\n\
