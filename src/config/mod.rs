@@ -5,13 +5,13 @@
 use super::include::{
     clap_app, config_dir, default_format, error, from_str, io, read_to_string, to_string, Account,
     AccountNumber, AccountStatus, AccountType, AdaptiveFormat, AuthenticationInfo, Cleanup,
-    ClientAccountType, ColoredHelp, Criterion, Currency, DateTime, Deserialize, Duplicate,
-    Duration, Instant, Ipv4Addr, LevelFilter, Local, LogSpecBuilder, Logger, Naming, OpenOptions,
-    PathBuf, ReconfigurationHandle, Result, Serialize, Write,
+    ClientAccountType, ColoredHelp, Criterion, Currency, DateTime, Deserialize, DirBuilder,
+    Duplicate, Duration, Instant, Ipv4Addr, LevelFilter, Local, LogSpecBuilder, Logger, Naming,
+    OpenOptions, Path, PathBuf, ReconfigurationHandle, Result, Serialize, Write,
 };
 
 mod default;
-
+// import the default config string to print if we need.
 use default::DEFAULT_CONFIG;
 
 fn validate_pathbuf(to_validate: PathBuf, config_path_arg: &PathBuf) -> PathBuf {
@@ -78,23 +78,36 @@ impl Config {
         } else {
             &config_path_arg
         }) {
+            // if all goes well return the loaded settings.
             Ok(settings) => settings,
+            // otherwise we can possibly still recover.
             Err(e) => {
+                // check if the error is an IO error, if not then pass it up.
                 let e = e.downcast::<io::Error>()?;
+                // now we check to see if it is a not found error.
                 match e.as_ref().kind() {
                     io::ErrorKind::NotFound => {
+                        // if using the default location and the file is not found, we write out
+                        // the default.
                         if config_path_arg == PathBuf::new() {
+                            // make sure the dir is there
+                            DirBuilder::new()
+                                .recursive(true)
+                                .create(default_config_path.parent().unwrap_or(Path::new("")))?;
                             // open and write out a default config at the default location
                             OpenOptions::new()
                                 .write(true)
                                 .create(true)
                                 .open(default_config_path)?
                                 .write_all(DEFAULT_CONFIG.as_bytes())?;
+                            // guaranteed to work so we just use unwrap.
                             from_str::<ConfigFile>(&DEFAULT_CONFIG).unwrap()
                         } else {
+                            // if not using the default location then we just pass up the error.
                             return Err(e);
                         }
                     }
+                    // if the error is anything but NotFound we just pass it up.
                     _ => return Err(e),
                 }
             }

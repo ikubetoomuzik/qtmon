@@ -46,6 +46,14 @@ All *underscores* will be replaced with spaces.
 
 ## Raw 
 
+### Accounts
+
+| Path                        | Description                                              |
+|-----------------------------|----------------------------------------------------------|
+| `/raw/account/list`         | Json array of account names.                             |
+| `/raw/account/$indentifier` | Json object of account info.                             |
+|                             | Where **$identifier** is the account *name* or *number*. |
+
 
 ## Author
 
