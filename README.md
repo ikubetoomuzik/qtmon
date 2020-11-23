@@ -29,10 +29,10 @@ An overview of the API and how to pull information can be found [here](./src/htt
 
 ## TODO
 * [ ] Fill out REST API README more completely.
-* [ ] Add lemonbar, unibar, and raw/account apis.
 * [ ] Go back and comment throughout the project, most specifically in the *storage* module.
 
 ## DONE
+* [x] Add statusbar api.
 * [x] REST API to actually get info.
 * [x] Add license. Probably just MIT.
 * [x] Fill out config README more completely.
