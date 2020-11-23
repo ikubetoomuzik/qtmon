@@ -8,9 +8,9 @@ The project has been uploaded to crates.io and can be downloaded with:
 # Default encoding (RON).
 cargo install qtmon
 # Yaml encoding.
-cargo install qtmon --no-default-features --features Yaml
+cargo install qtmon --no-default-features --features yaml
 # Bincode encoding.
-cargo install qtmon --no-default-features --features Yaml
+cargo install qtmon --no-default-features --features bincode
 ```
 ## Configuration
 Instructions on configuration of the application can be found [here](./src/config).
